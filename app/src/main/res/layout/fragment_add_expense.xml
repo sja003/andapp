@@ -1,0 +1,44 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/inputAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/amount_hint"
+        android:inputType="number"
+        android:autofillHints="creditCardNumber"
+        android:minHeight="48dp"/>
+
+    <Spinner
+        android:id="@+id/inputCategory"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:padding="8dp" />
+
+    <Spinner
+        android:id="@+id/inputAsset"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:padding="8dp" />
+
+    <EditText
+        android:id="@+id/inputMemo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/memo_hint"
+        android:inputType="text"
+        android:autofillHints="emailAddress"
+        android:minHeight="48dp"/>
+
+    <Button
+        android:id="@+id/saveButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/save_button" />
+</LinearLayout>

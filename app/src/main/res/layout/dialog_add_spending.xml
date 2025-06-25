@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <EditText
+        android:id="@+id/inputCategory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="카테고리 입력"
+        android:minHeight="48dp"
+        />
+
+    <EditText
+        android:id="@+id/inputAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="금액 입력"
+        android:inputType="number"
+        android:minHeight="48dp"
+        />
+
+    <EditText
+        android:id="@+id/inputNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="메모 (선택)"
+        android:minHeight="48dp"
+        />
+</LinearLayout>

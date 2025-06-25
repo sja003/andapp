@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:id="@+id/spendingTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/spending_title"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_gravity="center"
+        android:paddingBottom="32dp" />
+
+    <EditText
+        android:id="@+id/inputAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/amount_hint"
+        android:inputType="number"
+        android:autofillHints="creditCardNumber"
+        android:textSize="18sp"
+        android:padding="12dp"
+        android:background="@android:drawable/edit_text" />
+
+    <EditText
+        android:id="@+id/inputCategory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/category_hint"
+        android:inputType="text"
+        android:autofillHints="username"
+        android:textSize="18sp"
+        android:padding="12dp"
+        android:layout_marginTop="16dp"
+        android:background="@android:drawable/edit_text" />
+
+    <EditText
+        android:id="@+id/inputMemo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/memo_hint"
+        android:inputType="text"
+        android:autofillHints="username"
+        android:textSize="18sp"
+        android:padding="12dp"
+        android:layout_marginTop="16dp"
+        android:background="@android:drawable/edit_text" />
+
+    <Button
+        android:id="@+id/saveButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/save_spending"
+        android:layout_marginTop="32dp"
+        android:padding="16dp"
+        android:backgroundTint="#4CAF50"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp" />
+
+</LinearLayout>

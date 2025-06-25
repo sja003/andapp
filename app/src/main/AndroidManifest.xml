@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.myapplication">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="31">
+        <activity
+            android:name=".FirestoreHelper"
+            android:exported="false" />
+        <activity
+            android:name=".SpendingData"
+            android:exported="false" />
+        <activity
+            android:name=".LoginFragment"
+            android:exported="false" />
+        <activity
+            android:name=".GoogleCalendarHelper"
+            android:exported="false" />
+        <activity
+            android:name=".RetrofitInstance"
+            android:exported="false" />
+        <activity
+            android:name=".ReceiptOcrProcessor"
+            android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name=".HomePagerAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".AssetFragment"
+            android:exported="false" />
+        <activity
+            android:name=".HomeFragment"
+            android:exported="false" />
+        <activity
+            android:name=".Utils"
+            android:exported="false" />
+        <activity
+            android:name=".OcrResponse"
+            android:exported="false" />
+        <activity
+            android:name=".NaverOcrService"
+            android:exported="false" />
+        <activity
+            android:name=".MonthlySummary"
+            android:exported="false"
+            tools:ignore="Instantiatable" />
+        <activity
+            android:name=".MonthlyAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".Expense"
+            android:exported="false" />
+        <activity
+            android:name=".MemoAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".DailyAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".SpendingActivity"
+            android:exported="false" /> <!-- 지출 입력 화면 -->
+        <activity
+            android:name=".SpendingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MemoFragment"
+            android:exported="false" />
+        <activity
+            android:name=".SummaryFragment"
+            android:exported="false" />
+        <activity
+            android:name=".MonthlyFragment"
+            android:exported="false" />
+        <activity
+            android:name=".SpendingAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".DailyFragment"
+            android:exported="false" />
+        <activity
+            android:name=".CalendarFragment"
+            android:exported="false" /> <!-- 앱 시작화면: MainActivity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MyApplication.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true" /> <!-- 회원가입 화면 -->
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false" /> <!-- 분석 결과 화면 -->
+        <activity
+            android:name=".AnalysisFragment"
+            android:exported="false" />
+
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" /> <!-- GoogleSignInOptions 에서 필요 -->
+        <meta-data
+            android:name="com.google.android.gms.auth.api.signin"
+            android:resource="@xml/auth_config" /> <!-- 인증 관련 서비스 -->
+        <service
+            android:name="com.google.android.gms.auth.api.signin.internal.SignInHubActivity"
+            android:exported="false"
+            tools:node="remove" />
+    </application>
+
+</manifest>

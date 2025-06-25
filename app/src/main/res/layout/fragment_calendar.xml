@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/calendarFragmentRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 📆 달력 뷰 -->
+    <com.kizitonwose.calendar.view.CalendarView
+        android:id="@+id/calendarView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:minHeight="400dp"
+        app:cv_dayViewResource="@layout/calendar_day"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomSheetContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 👇 바텀시트처럼 보이는 하단 패널 -->
+    <LinearLayout
+        android:id="@+id/bottomSheetContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:maxHeight="300dp"
+        android:orientation="vertical"
+        android:background="@drawable/bottom_sheet_background"
+        android:padding="16dp"
+        android:visibility="gone"
+        android:elevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- ScrollView로 감싸서 내역이 많아도 달력 침범 안하게 -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/selectedDateText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="날짜"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/eventListText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="이벤트 목록"
+                    android:textSize="14sp"
+                    android:paddingBottom="8dp" />
+
+                <Button
+                    android:id="@+id/addEventButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="지출 및 일정 추가" />
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
