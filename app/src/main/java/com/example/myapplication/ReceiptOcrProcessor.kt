@@ -19,114 +19,151 @@ import java.io.File
 import java.util.UUID
 import android.graphics.Bitmap
 
-
 object ReceiptOcrProcessor {
 
-    // 👉 클로바 OCR API에서 발급받은 Secret Key (Base64 아님, 그대로 사용)
+    // 네이버 클로바 OCR Secret Key
     private const val CLIENT_SECRET = "Q1h2UVhkdFNBYkxIQ1dXVEVtS0d6eHBlWVJTWHhraVQ="
-
-    // Gateway 경로: {path+}
-    private const val OCR_PATH = "document"
 
     fun processImage(context: Context, imageFile: File) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d("OCR", "🔍 파일 존재: ${imageFile.exists()}, 경로: ${imageFile.absolutePath}")
+                Log.d("OCR_DEBUG", "=== OCR 처리 시작 ===")
+                Log.d("OCR_DEBUG", "파일 존재: ${imageFile.exists()}")
+                Log.d("OCR_DEBUG", "파일 크기: ${imageFile.length()} bytes")
+                Log.d("OCR_DEBUG", "파일 경로: ${imageFile.absolutePath}")
 
-                // 이미지 → Base64 변환
-// 이미지 축소를 위한 옵션 설정
+                if (!imageFile.exists() || imageFile.length() == 0L) {
+                    Log.e("OCR_ERROR", "❌ 파일이 존재하지 않거나 비어있습니다")
+                    return@launch
+                }
+
+                // 이미지 로드 및 압축
                 val options = BitmapFactory.Options().apply {
-                    inSampleSize = 2  // 이미지 크기를 절반으로 줄임 (메모리 1/4)
+                    inSampleSize = 2
                 }
 
                 val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath, options)
                 if (bitmap == null) {
-                    Log.e("OCR_ERROR", "❌ bitmap is null")
+                    Log.e("OCR_ERROR", "❌ 이미지 디코딩 실패")
                     return@launch
                 }
 
-// ✅ format은 무조건 "jpg"로 고정
-                val format = "jpg"
-                Log.d("OCR", "🧾 OCR format: $format")
+                Log.d("OCR_DEBUG", "✅ 이미지 로드 성공: ${bitmap.width}x${bitmap.height}")
 
+                // JPEG로 압축
                 val outputStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+                val compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+
+                if (!compressed) {
+                    Log.e("OCR_ERROR", "❌ 이미지 압축 실패")
+                    return@launch
+                }
 
                 val imageBytes = outputStream.toByteArray()
                 val base64Image = Base64.encodeToString(imageBytes, Base64.NO_WRAP)
 
+                Log.d("OCR_DEBUG", "✅ Base64 인코딩 완료: ${base64Image.length} chars")
+                Log.d("OCR_DEBUG", "Base64 preview: ${base64Image.take(50)}...")
+
+                // OCR API 요청 JSON
+                val requestId = UUID.randomUUID().toString()
+                val timestamp = System.currentTimeMillis()
+
                 val jsonObject = mapOf(
                     "version" to "V2",
-                    "requestId" to UUID.randomUUID().toString(),
-                    "timestamp" to System.currentTimeMillis(),
+                    "requestId" to requestId,
+                    "timestamp" to timestamp,
                     "images" to listOf(
                         mapOf(
-                            "name" to "demo",
-                            "format" to format,  // 무조건 jpg
-                            "data" to base64Image,
-                            "lang" to "ko"
+                            "name" to "receipt_${timestamp}",
+                            "format" to "jpg",
+                            "data" to base64Image
                         )
                     )
                 )
 
-
                 val json = Gson().toJson(jsonObject)
-                Log.d("OCR", "🧾 JSON 생성 완료: ${json.take(100)}...")
+                Log.d("OCR_DEBUG", "✅ JSON 생성 완료")
+                Log.d("OCR_DEBUG", "Request ID: $requestId")
+                Log.d("OCR_DEBUG", "Timestamp: $timestamp")
 
-                // Retrofit 요청 준비
+                // Retrofit 요청
                 val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
                 val requestBody: RequestBody = json.toRequestBody(mediaType)
 
                 val retrofit = RetrofitInstance.getInstance()
                 val service = retrofit.create(NaverOcrService::class.java)
 
-                Log.d("OCR", "🚀 Retrofit 호출 시작")
+                Log.d("OCR_DEBUG", "🚀 API 호출 시작...")
 
                 val call = service.requestOcr(
-                    path = "general",
                     body = requestBody,
                     secret = CLIENT_SECRET
                 )
 
                 call.enqueue(object : Callback<OcrResponse> {
                     override fun onResponse(call: Call<OcrResponse>, response: Response<OcrResponse>) {
+                        Log.d("OCR_DEBUG", "=== API 응답 수신 ===")
+                        Log.d("OCR_DEBUG", "상태 코드: ${response.code()}")
+                        Log.d("OCR_DEBUG", "응답 성공: ${response.isSuccessful}")
+
                         if (response.isSuccessful) {
                             val result = response.body()
-                            val texts = result?.images
-                                ?.flatMap { it.fields }
-                                ?.map { it.inferText }
+                            Log.d("OCR_DEBUG", "응답 바디 존재: ${result != null}")
 
-                            Log.d("OCR", "✅ OCR 성공: ${texts?.joinToString()}")
+                            if (result?.images?.isNotEmpty() == true) {
+                                val extractedTexts = mutableListOf<String>()
 
-                            if (response.isSuccessful) {
-                                val result = response.body()
-                                val texts = result?.images
-                                    ?.flatMap { it.fields }
-                                    ?.map { it.inferText }
-                                    ?: emptyList()
+                                result.images.forEach { image ->
+                                    Log.d("OCR_DEBUG", "이미지 필드 수: ${image.fields.size}")
+                                    image.fields.forEach { field ->
+                                        val text = field.inferText.trim()
+                                        if (text.isNotEmpty()) {
+                                            extractedTexts.add(text)
+                                        }
+                                    }
+                                }
 
-                                val ocrText = texts.joinToString(" ")
-                                Log.d("OCR", "✅ OCR 전체 텍스트: $ocrText")
+                                val fullOcrText = extractedTexts.joinToString("\n")
 
-                                // 자동 저장 실행
-                                FirestoreHelper.saveParsedOcrResult(ocrText)
+                                Log.d("OCR_SUCCESS", "✅ OCR 성공!")
+                                Log.d("OCR_SUCCESS", "추출된 텍스트 수: ${extractedTexts.size}")
+                                Log.d("OCR_SUCCESS", "=== 전체 OCR 결과 ===")
+                                Log.d("OCR_SUCCESS", fullOcrText)
+                                Log.d("OCR_SUCCESS", "========================")
 
+                                if (fullOcrText.isNotEmpty()) {
+                                    FirestoreHelper.saveParsedOcrResult(fullOcrText)
+                                } else {
+                                    Log.w("OCR_WARNING", "⚠️ 추출된 텍스트가 비어있습니다")
+                                }
 
-
+                            } else {
+                                Log.w("OCR_WARNING", "⚠️ OCR 결과 이미지가 없습니다")
+                                Log.d("OCR_DEBUG", "Result: $result")
                             }
 
                         } else {
-                            Log.e("OCR_ERROR", "❌ 응답 실패: ${response.code()} - ${response.errorBody()?.string()}")
+                            val errorBody = response.errorBody()?.string()
+                            Log.e("OCR_ERROR", "❌ API 호출 실패")
+                            Log.e("OCR_ERROR", "상태 코드: ${response.code()}")
+                            Log.e("OCR_ERROR", "에러 바디: $errorBody")
+                            Log.e("OCR_ERROR", "응답 헤더: ${response.headers()}")
                         }
                     }
 
                     override fun onFailure(call: Call<OcrResponse>, t: Throwable) {
-                        Log.e("OCR_ERROR", "❌ 네트워크 오류: ${t.message}")
+                        Log.e("OCR_ERROR", "❌ 네트워크 오류")
+                        Log.e("OCR_ERROR", "오류 메시지: ${t.message}")
+                        Log.e("OCR_ERROR", "오류 타입: ${t.javaClass.simpleName}")
                         t.printStackTrace()
                     }
                 })
+
             } catch (e: Exception) {
-                Log.e("OCR_ERROR", "❌ 예외 발생: ${e.message}")
+                Log.e("OCR_ERROR", "❌ 처리 중 예외 발생")
+                Log.e("OCR_ERROR", "예외 메시지: ${e.message}")
+                Log.e("OCR_ERROR", "예외 타입: ${e.javaClass.simpleName}")
                 e.printStackTrace()
             }
         }

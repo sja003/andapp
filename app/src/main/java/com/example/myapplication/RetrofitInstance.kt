@@ -1,25 +1,27 @@
 package com.example.myapplication
 
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.net.InetAddress
-import java.net.Inet4Address
+import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
 
+    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
-        .dns(object : okhttp3.Dns {
-            override fun lookup(hostname: String): List<InetAddress> {
-                return InetAddress.getAllByName(hostname)
-                    .filter { it is Inet4Address }
-            }
-        })
+        .addInterceptor(loggingInterceptor)  // API 호출 로그 추가
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     fun getInstance(): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://tslvy4ez2z.apigw.ntruss.com/custom/v1/42332/2a22a9f61acdc652a557fc20938ac17040a1049bee97a4214c8e853cd1051aa4/")
+            .baseUrl("https://tslvy4ez2z.apigw.ntruss.com/")  // 기본 URL만
             .addConverterFactory(GsonConverterFactory.create())
             .client(okHttpClient)
             .build()
