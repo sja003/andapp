@@ -18,14 +18,18 @@ import com.google.firebase.auth.FirebaseAuth
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import com.example.myapplication.ReceiptOcrProcessor
-
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var photoUri: Uri? = null
     private var photoFile: File? = null
+
+    companion object {
+        private const val CAMERA_REQUEST_CODE = 101
+        private const val GALLERY_REQUEST_CODE = 102
+        private const val CAMERA_PERMISSION_CODE = 100
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,16 +80,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddOptionDialog() {
-        val options = arrayOf("지출 내역 직접 입력", "영수증 인식")
+        val options = arrayOf("지출 내역 직접 입력", "카메라로 영수증 촬영", "갤러리에서 영수증 선택")
         AlertDialog.Builder(this)
             .setTitle("추가 방법 선택")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
+                        // 직접 입력
                         loadFragment(SpendingFragment())
                     }
                     1 -> {
+                        // 카메라 촬영
                         checkCameraPermissionAndLaunch()
+                    }
+                    2 -> {
+                        // 갤러리 선택
+                        openGallery()
                     }
                 }
             }
@@ -95,7 +105,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkCameraPermissionAndLaunch() {
         val permission = Manifest.permission.CAMERA
         if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(permission), 100)
+            ActivityCompat.requestPermissions(this, arrayOf(permission), CAMERA_PERMISSION_CODE)
         } else {
             launchCamera()
         }
@@ -112,7 +122,28 @@ class MainActivity : AppCompatActivity() {
                 file
             )
             intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
-            startActivityForResult(intent, 101)
+            startActivityForResult(intent, CAMERA_REQUEST_CODE)
+        }
+    }
+
+    private fun openGallery() {
+        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+            type = "image/*"
+        }
+
+        // 갤러리 앱이 있는지 확인
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, GALLERY_REQUEST_CODE)
+        } else {
+            // 갤러리 앱이 없으면 파일 선택기 사용
+            val fileIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "image/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+            }
+            startActivityForResult(
+                Intent.createChooser(fileIntent, "영수증 이미지 선택"),
+                GALLERY_REQUEST_CODE
+            )
         }
     }
 
@@ -129,7 +160,9 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 100 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == CAMERA_PERMISSION_CODE &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             launchCamera()
         }
     }
@@ -137,13 +170,53 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == 101 && resultCode == RESULT_OK) {
-            photoFile?.let { file ->
-                Log.d("OCR", "촬영된 이미지 경로: ${file.absolutePath}")
-                Log.d("OCR", "이미지 파일 존재 여부: ${file.exists()}, 크기: ${file.length()} bytes")
+        if (resultCode == RESULT_OK) {
+            when (requestCode) {
+                CAMERA_REQUEST_CODE -> {
+                    // 카메라로 촬영한 경우
+                    photoFile?.let { file ->
+                        Log.d("OCR", "카메라 촬영 완료: ${file.absolutePath}")
+                        processImageFile(file)
+                    }
+                }
 
-                ReceiptOcrProcessor.processImage(this, file)
+                GALLERY_REQUEST_CODE -> {
+                    // 갤러리에서 선택한 경우
+                    data?.data?.let { uri ->
+                        Log.d("OCR", "갤러리 선택 완료: $uri")
+                        processImageUri(uri)
+                    }
+                }
             }
+        }
+    }
+
+    private fun processImageFile(file: File) {
+        if (file.exists() && file.length() > 0) {
+            Log.d("OCR", "파일 처리 시작: ${file.absolutePath}, 크기: ${file.length()} bytes")
+            ReceiptOcrProcessor.processImage(this, file)
+        } else {
+            Log.e("OCR", "유효하지 않은 파일: ${file.absolutePath}")
+        }
+    }
+
+    private fun processImageUri(uri: Uri) {
+        try {
+            // URI를 임시 파일로 복사
+            val inputStream = contentResolver.openInputStream(uri)
+            val tempFile = createImageFile()
+
+            inputStream?.use { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            Log.d("OCR", "갤러리 이미지 복사 완료: ${tempFile.absolutePath}")
+            processImageFile(tempFile)
+
+        } catch (e: Exception) {
+            Log.e("OCR", "갤러리 이미지 처리 실패: ${e.message}", e)
         }
     }
 
