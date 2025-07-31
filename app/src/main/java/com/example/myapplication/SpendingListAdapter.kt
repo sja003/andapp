@@ -9,34 +9,52 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-class DailySpendingAdapter(
+class SpendingListAdapter(
     private val spendingList: List<SpendingItem>,
     private val onItemClick: (SpendingItem) -> Unit
-) : RecyclerView.Adapter<DailySpendingAdapter.DailyViewHolder>() {
+) : RecyclerView.Adapter<SpendingListAdapter.SpendingViewHolder>() {
 
-    // 더 명확한 시간 표시
-    private val timeFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
+    // 더 명확한 시간 표시 (전체 목록에서는 날짜도 포함)
+    private val fullDateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
     private val numberFormat = NumberFormat.getNumberInstance(Locale.getDefault())
 
-    // 상대적 시간 표시 함수
-    private fun getRelativeTime(timestamp: Timestamp): String {
+    // 상대적 시간 표시 함수 (전체 목록용 - 더 상세한 정보)
+    private fun getDetailedRelativeTime(timestamp: Timestamp): String {
         val now = System.currentTimeMillis()
         val diff = now - timestamp.toDate().time
+        val calendar = Calendar.getInstance()
+        val timestampCalendar = Calendar.getInstance().apply {
+            time = timestamp.toDate()
+        }
 
         return when {
-            diff < 60000 -> "방금 전"
-            diff < 3600000 -> "${diff / 60000}분 전"
-            diff < 86400000 -> "${diff / 3600000}시간 전"
-            else -> timeFormat.format(timestamp.toDate())
+            // 오늘인 경우
+            calendar.get(Calendar.DAY_OF_YEAR) == timestampCalendar.get(Calendar.DAY_OF_YEAR) &&
+                    calendar.get(Calendar.YEAR) == timestampCalendar.get(Calendar.YEAR) -> {
+                when {
+                    diff < 60000 -> "방금 전"
+                    diff < 3600000 -> "${diff / 60000}분 전"
+                    diff < 86400000 -> "${diff / 3600000}시간 전"
+                    else -> "오늘 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(timestamp.toDate())}"
+                }
+            }
+            // 어제인 경우
+            calendar.apply { add(Calendar.DAY_OF_YEAR, -1) }.get(Calendar.DAY_OF_YEAR) ==
+                    timestampCalendar.get(Calendar.DAY_OF_YEAR) &&
+                    calendar.get(Calendar.YEAR) == timestampCalendar.get(Calendar.YEAR) -> {
+                "어제 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(timestamp.toDate())}"
+            }
+            // 그 외의 경우
+            else -> fullDateFormat.format(timestamp.toDate())
         }
     }
 
-    inner class DailyViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class SpendingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var categoryText: TextView? = null
         var amountText: TextView? = null
         var assetText: TextView? = null
         var memoText: TextView? = null
-        var timeText: TextView? = null
+        var dateText: TextView? = null
         var ocrBadge: TextView? = null
 
         init {
@@ -54,18 +72,18 @@ class DailySpendingAdapter(
                 amountText = itemView.findViewWithTag("amount")
                 assetText = itemView.findViewWithTag("asset")
                 memoText = itemView.findViewWithTag("memo")
-                timeText = itemView.findViewWithTag("time")
+                dateText = itemView.findViewWithTag("date")
                 ocrBadge = itemView.findViewWithTag("ocr_badge")
             }
 
             categoryText?.text = "📂 ${item.category}"
-            amountText?.text = "-${numberFormat.format(item.amount)}원"
+            amountText?.text = "${numberFormat.format(item.amount)}원"
             assetText?.text = "💳 ${item.asset}"
             memoText?.text = if (item.memo.isNotEmpty()) "📝 ${item.memo}" else "메모 없음"
 
-            // 개선된 시간 표시 - 상대적 시간 사용
+            // 개선된 시간 표시 - 상세한 상대적 시간 사용
             item.date?.let { timestamp ->
-                timeText?.text = "🕐 ${getRelativeTime(timestamp)}"
+                dateText?.text = "📅 ${getDetailedRelativeTime(timestamp)}"
             }
 
             if (item.isOcrGenerated) {
@@ -76,30 +94,30 @@ class DailySpendingAdapter(
             }
 
             val backgroundColor = when (item.category) {
-                "식비" -> android.graphics.Color.parseColor("#FFF3E0")
-                "카페" -> android.graphics.Color.parseColor("#EFEBE9")
-                "교통" -> android.graphics.Color.parseColor("#E3F2FD")
-                "쇼핑" -> android.graphics.Color.parseColor("#FCE4EC")
-                "문화생활" -> android.graphics.Color.parseColor("#F3E5F5")
-                "의료" -> android.graphics.Color.parseColor("#FFEBEE")
+                "식비" -> android.graphics.Color.parseColor("#FFE0B2")
+                "카페" -> android.graphics.Color.parseColor("#D7CCC8")
+                "교통" -> android.graphics.Color.parseColor("#BBDEFB")
+                "쇼핑" -> android.graphics.Color.parseColor("#F8BBD9")
+                "문화생활" -> android.graphics.Color.parseColor("#E1BEE7")
+                "의료" -> android.graphics.Color.parseColor("#FFCDD2")
                 else -> android.graphics.Color.parseColor("#F5F5F5")
             }
             itemView.setBackgroundColor(backgroundColor)
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DailyViewHolder {
-        val itemView = createDailyItemView(parent)
-        return DailyViewHolder(itemView)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SpendingViewHolder {
+        val itemView = createItemView(parent)
+        return SpendingViewHolder(itemView)
     }
 
-    override fun onBindViewHolder(holder: DailyViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: SpendingViewHolder, position: Int) {
         holder.bind(spendingList[position])
     }
 
     override fun getItemCount(): Int = spendingList.size
 
-    private fun createDailyItemView(parent: ViewGroup): View {
+    private fun createItemView(parent: ViewGroup): View {
         val context = parent.context
 
         val cardView = androidx.cardview.widget.CardView(context).apply {
@@ -107,18 +125,18 @@ class DailySpendingAdapter(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(24, 8, 24, 8)
+                setMargins(24, 12, 24, 12)
             }
-            radius = 12f
-            cardElevation = 3f
+            radius = 16f
+            cardElevation = 4f
         }
 
         val mainLayout = android.widget.LinearLayout(context).apply {
             orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(32, 24, 32, 24)
+            setPadding(40, 32, 40, 32)
         }
 
-        // 상단 (카테고리, OCR 뱃지, 금액)
+        // 상단 레이아웃 (카테고리, 금액, OCR 뱃지)
         val topLayout = android.widget.LinearLayout(context).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -134,8 +152,8 @@ class DailySpendingAdapter(
         }
 
         val ocrBadge = TextView(context).apply {
-            textSize = 10f
-            setPadding(12, 6, 12, 6)
+            textSize = 12f
+            setPadding(16, 8, 16, 8)
             setBackgroundColor(android.graphics.Color.parseColor("#E3F2FD"))
             setTextColor(android.graphics.Color.parseColor("#1976D2"))
             visibility = View.GONE
@@ -154,10 +172,10 @@ class DailySpendingAdapter(
         topLayout.addView(ocrBadge)
         topLayout.addView(amountText)
 
-        // 하단 (결제수단, 상대적 시간)
-        val bottomLayout = android.widget.LinearLayout(context).apply {
+        // 중간 레이아웃 (자산, 개선된 날짜/시간)
+        val middleLayout = android.widget.LinearLayout(context).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
-            setPadding(0, 12, 0, 0)
+            setPadding(0, 16, 0, 0)
         }
 
         val assetText = TextView(context).apply {
@@ -168,28 +186,29 @@ class DailySpendingAdapter(
             tag = "asset"
         }
 
-        val timeText = TextView(context).apply {
+        val dateText = TextView(context).apply {
             textSize = 14f
             gravity = android.view.Gravity.END
             setTextColor(android.graphics.Color.parseColor("#757575"))
-            tag = "time"
+            tag = "date"
         }
 
-        bottomLayout.addView(assetText)
-        bottomLayout.addView(timeText)
+        middleLayout.addView(assetText)
+        middleLayout.addView(dateText)
 
-        // 메모
+        // 메모 텍스트
         val memoText = TextView(context).apply {
-            textSize = 13f
-            setPadding(0, 8, 0, 0)
+            textSize = 14f
+            setPadding(0, 12, 0, 0)
             setTextColor(android.graphics.Color.parseColor("#424242"))
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
             tag = "memo"
         }
 
+        // 레이아웃 조립
         mainLayout.addView(topLayout)
-        mainLayout.addView(bottomLayout)
+        mainLayout.addView(middleLayout)
         mainLayout.addView(memoText)
         cardView.addView(mainLayout)
 

@@ -29,7 +29,7 @@ class HomeFragment : Fragment() {
         pagerAdapter = HomePagerAdapter(this)
         binding.viewPager.adapter = pagerAdapter
 
-        val tabTitles = listOf("일간", "달력", "월별")
+        val tabTitles = listOf("오늘", "달력", "월별", "전체") // 탭 제목 업데이트
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = tabTitles[position]
         }.attach()

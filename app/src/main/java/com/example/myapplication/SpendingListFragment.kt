@@ -11,13 +11,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import java.text.SimpleDateFormat
-import java.util.*
 
-class DailyFragment : Fragment() {
+class SpendingListFragment : Fragment() {
 
     private lateinit var recyclerView: RecyclerView
-    private lateinit var dailyAdapter: DailySpendingAdapter
+    private lateinit var spendingAdapter: SpendingListAdapter
     private val spendingList = mutableListOf<SpendingItem>()
     private val db = FirebaseFirestore.getInstance()
 
@@ -25,16 +23,16 @@ class DailyFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        return createDailyLayout()
+        return createListLayout()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
-        loadTodaySpending()
+        loadSpendingData()
     }
 
-    private fun createDailyLayout(): View {
+    private fun createListLayout(): View {
         val context = requireContext()
 
         val rootLayout = android.widget.LinearLayout(context).apply {
@@ -44,34 +42,29 @@ class DailyFragment : Fragment() {
 
         // 헤더
         val headerLayout = android.widget.LinearLayout(context).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 24)
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            setPadding(48, 48, 48, 48)
             setBackgroundColor(android.graphics.Color.WHITE)
+            gravity = android.view.Gravity.CENTER_VERTICAL
         }
 
         val titleText = android.widget.TextView(context).apply {
-            text = "📊 오늘의 지출"
-            textSize = 22f
+            text = "💰 전체 지출 내역"
+            textSize = 20f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(android.graphics.Color.parseColor("#212121"))
-        }
-
-        val todayText = android.widget.TextView(context).apply {
-            text = SimpleDateFormat("yyyy년 MM월 dd일 (E)", Locale.KOREAN).format(Date())
-            textSize = 14f
-            setTextColor(android.graphics.Color.parseColor("#757575"))
-            setPadding(0, 12, 0, 0)
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+            )
         }
 
         val hintText = android.widget.TextView(context).apply {
-            text = "💡 항목을 터치하여 수정/삭제하세요"
+            text = "✏️ 터치하여 수정/삭제"
             textSize = 12f
-            setTextColor(android.graphics.Color.parseColor("#1976D2"))
-            setPadding(0, 16, 0, 0)
+            setTextColor(android.graphics.Color.parseColor("#757575"))
         }
 
         headerLayout.addView(titleText)
-        headerLayout.addView(todayText)
         headerLayout.addView(hintText)
 
         // 구분선
@@ -96,17 +89,17 @@ class DailyFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        dailyAdapter = DailySpendingAdapter(spendingList) { spendingItem ->
+        spendingAdapter = SpendingListAdapter(spendingList) { spendingItem ->
             showEditDeleteDialog(spendingItem)
         }
 
         recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = dailyAdapter
+            adapter = spendingAdapter
         }
     }
 
-    private fun loadTodaySpending() {
+    private fun loadSpendingData() {
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser == null) {
             Toast.makeText(requireContext(), "로그인이 필요합니다", Toast.LENGTH_SHORT).show()
@@ -114,22 +107,8 @@ class DailyFragment : Fragment() {
         }
 
         val uid = currentUser.uid
-        val today = Calendar.getInstance()
-        today.set(Calendar.HOUR_OF_DAY, 0)
-        today.set(Calendar.MINUTE, 0)
-        today.set(Calendar.SECOND, 0)
-        today.set(Calendar.MILLISECOND, 0)
-
-        val tomorrow = Calendar.getInstance()
-        tomorrow.add(Calendar.DAY_OF_MONTH, 1)
-        tomorrow.set(Calendar.HOUR_OF_DAY, 0)
-        tomorrow.set(Calendar.MINUTE, 0)
-        tomorrow.set(Calendar.SECOND, 0)
-        tomorrow.set(Calendar.MILLISECOND, 0)
 
         db.collection("users").document(uid).collection("spending")
-            .whereGreaterThanOrEqualTo("date", com.google.firebase.Timestamp(today.time))
-            .whereLessThan("date", com.google.firebase.Timestamp(tomorrow.time))
             .orderBy("date", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -151,12 +130,12 @@ class DailyFragment : Fragment() {
                     )
                     spendingList.add(item)
                 }
-                dailyAdapter.notifyDataSetChanged()
+                spendingAdapter.notifyDataSetChanged()
             }
     }
 
     private fun showEditDeleteDialog(spendingItem: SpendingItem) {
-        val options = arrayOf("✏️ 수정하기", "🗑️ 삭제하기")
+        val options = arrayOf("✏️ 수정하기", "🗑️ 삭제하기", "📊 상세정보")
 
         android.app.AlertDialog.Builder(requireContext())
             .setTitle("${spendingItem.category} • ${String.format("%,d", spendingItem.amount)}원")
@@ -164,12 +143,54 @@ class DailyFragment : Fragment() {
                 when (which) {
                     0 -> showEditDialog(spendingItem)
                     1 -> showDeleteConfirmDialog(spendingItem)
+                    2 -> showDetailDialog(spendingItem)
                 }
             }
             .setNegativeButton("취소", null)
             .show()
     }
 
+    private fun showDetailDialog(spendingItem: SpendingItem) {
+        val message = buildString {
+            append("📊 지출 상세 정보\n\n")
+            append("💰 금액: ${String.format("%,d", spendingItem.amount)}원\n")
+            append("📂 카테고리: ${spendingItem.category}\n")
+            append("💳 결제수단: ${spendingItem.asset}\n")
+            spendingItem.date?.let {
+                append("📅 날짜: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(it.toDate())}\n")
+            }
+            if (spendingItem.memo.isNotEmpty()) {
+                append("📝 메모: ${spendingItem.memo}\n")
+            }
+
+            if (spendingItem.isOcrGenerated) {
+                append("\n🤖 OCR 생성 정보:\n")
+                append("• 영수증 OCR로 자동 생성됨\n")
+                spendingItem.ocrDetails?.let { details ->
+                    val items = details["items"] as? List<Map<String, Any>>
+                    if (!items.isNullOrEmpty()) {
+                        append("• 인식된 메뉴: ${items.size}개\n")
+                        items.take(3).forEach { item ->
+                            val name = item["name"] as? String ?: ""
+                            val price = item["price"] as? Number ?: 0
+                            append("  - $name: ${String.format("%,d", price.toInt())}원\n")
+                        }
+                        if (items.size > 3) {
+                            append("  - 외 ${items.size - 3}개 항목\n")
+                        }
+                    }
+                }
+            }
+        }
+
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("📊 상세 정보")
+            .setMessage(message)
+            .setPositiveButton("확인", null)
+            .show()
+    }
+
+    // 수정/삭제 다이얼로그는 DailyFragment와 동일한 로직 사용
     private fun showEditDialog(spendingItem: SpendingItem) {
         val layout = android.widget.LinearLayout(requireContext()).apply {
             orientation = android.widget.LinearLayout.VERTICAL
@@ -252,7 +273,7 @@ class DailyFragment : Fragment() {
             setText(spendingItem.memo)
         }
 
-        // OCR 정보 표시 (OCR 생성 항목인 경우)
+        // OCR 정보 표시
         if (spendingItem.isOcrGenerated) {
             val ocrInfoLabel = android.widget.TextView(requireContext()).apply {
                 text = "🤖 OCR 인식 정보"
