@@ -7,13 +7,13 @@ import com.example.myapplication.databinding.ItemSpendingBinding
 import java.text.SimpleDateFormat
 import java.util.*
 
-class SpendingAdapter(private var items: List<Spending>) :
+class SpendingAdapter(private var items: List<SpendingItem>) :
     RecyclerView.Adapter<SpendingAdapter.ViewHolder>() {
 
     inner class ViewHolder(private val binding: ItemSpendingBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(item: Spending) {
+        fun bind(item: SpendingItem) {
             // 카테고리
             binding.categoryText.text = item.category.ifEmpty { "카테고리 없음" }
 
@@ -49,7 +49,7 @@ class SpendingAdapter(private var items: List<Spending>) :
 
     override fun getItemCount(): Int = items.size
 
-    fun updateList(newItems: List<Spending>) {
+    fun updateList(newItems: List<SpendingItem>) {
         items = newItems
         notifyDataSetChanged()
     }

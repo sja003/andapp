@@ -8,18 +8,10 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.myapplication.databinding.FragmentAddExpenseBinding
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-
-
-data class Spending(
-    val amount: Int = 0,
-    val category: String = "",
-    val asset: String = "",
-    val memo: String = "",
-    val date: Timestamp? = null
-)
 
 class SpendingFragment : Fragment() {
 
@@ -39,19 +31,25 @@ class SpendingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // ✅ 카테고리 Spinner 설정
-        val categoryList = listOf("식비", "교통", "쇼핑", "문화생활", "의료", "기타")
+        setupSpinners()
+        setupSaveButton()
+    }
+
+    private fun setupSpinners() {
+        // 카테고리 Spinner 설정
+        val categoryList = listOf("식비", "카페", "교통", "쇼핑", "문화생활", "의료", "기타")
         val categoryAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, categoryList)
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.inputCategory.adapter = categoryAdapter
 
-        // ✅ 자산 Spinner 설정
+        // 자산 Spinner 설정
         val assetList = listOf("현금", "체크카드", "신용카드", "카카오페이", "토스")
         val assetAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, assetList)
         assetAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.inputAsset.adapter = assetAdapter
+    }
 
-        // 저장 버튼 클릭
+    private fun setupSaveButton() {
         binding.saveButton.setOnClickListener {
             val amountText = binding.inputAmount.text.toString()
             val category = binding.inputCategory.selectedItem.toString()
@@ -76,47 +74,59 @@ class SpendingFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            val uid = currentUser.uid
-            val timestamp = Timestamp.now()
-
-            val spending = hashMapOf(
-                "amount" to amount,
-                "category" to category,
-                "asset" to asset,
-                "memo" to memo,
-                "date" to timestamp
-            )
-
-            // 🔥 Firestore 저장
-            db.collection("users").document(uid).collection("spending")
-                .add(spending)
-                .addOnSuccessListener {
-                    Toast.makeText(requireContext(), "지출 저장 성공!", Toast.LENGTH_SHORT).show()
-                    binding.inputAmount.text.clear()
-                    binding.inputMemo.text.clear()
-
-                    // 🔄 Fragment 전환
-                    requireActivity().supportFragmentManager.beginTransaction()
-                        .replace(R.id.fragment_container, DailyFragment())
-                        .commit()
-                }
-                .addOnFailureListener {
-                    Toast.makeText(requireContext(), "저장 실패: ${it.message}", Toast.LENGTH_SHORT).show()
-                }
-
-            // ✅ Google Calendar 이벤트 등록
-            val account = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(requireContext())
-            if (account != null) {
-                com.example.myapplication.GoogleCalendarHelper.insertExpenseEvent(
-                    context = requireContext(),
-                    account = account,
-                    title = "[지출] ${category} - ${amount}원",
-                    description = memo,
-                    timestamp = timestamp
-                )
-            }
+            saveSpending(currentUser.uid, amount, category, asset, memo)
         }
+    }
 
+    private fun saveSpending(uid: String, amount: Int, category: String, asset: String, memo: String) {
+        val timestamp = Timestamp.now()
+
+        val spending = hashMapOf(
+            "amount" to amount,
+            "category" to category,
+            "asset" to asset,
+            "memo" to memo,
+            "date" to timestamp
+        )
+
+        // Firestore 저장
+        db.collection("users").document(uid).collection("spending")
+            .add(spending)
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "지출 저장 성공!", Toast.LENGTH_SHORT).show()
+                clearInputs()
+
+                // Google 캘린더 연동 (Google 사용자인 경우)
+                addToGoogleCalendarIfNeeded(category, amount, memo, timestamp)
+
+                // 홈화면으로 이동
+                navigateToHome()
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "저장 실패: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun addToGoogleCalendarIfNeeded(category: String, amount: Int, memo: String, timestamp: Timestamp) {
+        val googleAccount = GoogleSignIn.getLastSignedInAccount(requireContext())
+        if (googleAccount != null) {
+            val googleCalendarHelper = GoogleCalendarHelper(requireContext(), googleAccount)
+            val title = "[지출] $category - ${String.format("%,d", amount)}원"
+            val description = if (memo.isNotEmpty()) memo else "직접 입력한 지출"
+
+            googleCalendarHelper.insertExpenseEvent(title, description, timestamp)
+        }
+    }
+
+    private fun clearInputs() {
+        binding.inputAmount.text.clear()
+        binding.inputMemo.text.clear()
+    }
+
+    private fun navigateToHome() {
+        requireActivity().supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, HomeFragment())
+            .commit()
     }
 
     override fun onDestroyView() {
