@@ -17,7 +17,7 @@ import com.google.android.gms.common.api.Scope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.Timestamp
+// import com.google.firebase.Timestamp - 이미 있음
 
 class LoginActivity : AppCompatActivity() {
 
@@ -129,7 +129,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         // 회원가입 이동
-        binding.tvGoToRegister.setOnClickListener {
+        binding.tvRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
 

@@ -22,3 +22,19 @@ data class SpendingData(
     val category: String,
     val memo: String
 )
+
+data class LocalEvent(
+    val id: String = "",
+    val title: String = "",
+    val description: String = "",
+    val date: Timestamp = Timestamp.now(),
+    val createdAt: Timestamp = Timestamp.now()
+)
+
+data class CalendarIndicator(
+    val date: String,
+    val hasSpending: Boolean,
+    val hasEvent: Boolean,
+    val spendingAmount: Int = 0,
+    val eventCount: Int = 0
+)

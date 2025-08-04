@@ -6,21 +6,25 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/categoryText"
+        android:id="@+id/tv_category"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/category" />
+        android:text="@string/category"
+        android:textSize="16sp"
+        android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/amountText"
+        android:id="@+id/tv_predicted_spending"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/predicted_spending" />
+        android:text="@string/predicted_spending"
+        android:textSize="14sp" />
 
     <TextView
-        android:id="@+id/monthText"
+        android:id="@+id/tv_month"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/month" />
+        android:text="@string/month"
+        android:textSize="14sp" />
 
 </LinearLayout>

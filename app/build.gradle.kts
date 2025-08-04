@@ -58,6 +58,9 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
 
+    implementation("androidx.cardview:cardview:1.0.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+
     // Android 기본 라이브러리
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

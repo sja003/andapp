@@ -10,9 +10,9 @@ class AnalysisAdapter(private val items: List<AnalysisItem>) :
     RecyclerView.Adapter<AnalysisAdapter.AnalysisViewHolder>() {
 
     class AnalysisViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val categoryText: TextView = itemView.findViewById(R.id.categoryText)
-        val amountText: TextView = itemView.findViewById(R.id.amountText)
-        val monthText: TextView = itemView.findViewById(R.id.monthText)
+        val categoryText: TextView = itemView.findViewById(R.id.tv_category)
+        val amountText: TextView = itemView.findViewById(R.id.tv_predicted_spending)
+        val monthText: TextView = itemView.findViewById(R.id.tv_month)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AnalysisViewHolder {
@@ -24,9 +24,9 @@ class AnalysisAdapter(private val items: List<AnalysisItem>) :
         val item = items[position]
         val context = holder.itemView.context
 
-        holder.categoryText.text = context.getString(R.string.category_text, item.category)
-        holder.amountText.text = context.getString(R.string.predicted_spending_text, item.predictedAmount)
-        holder.monthText.text = context.getString(R.string.month_text, item.month)
+        holder.categoryText.text = "${context.getString(R.string.category)}: ${item.category}"
+        holder.amountText.text = "${context.getString(R.string.predicted_spending)}: ${String.format("%,d", item.predictedAmount)}원"
+        holder.monthText.text = "${context.getString(R.string.month)}: ${item.month}"
     }
 
     override fun getItemCount() = items.size

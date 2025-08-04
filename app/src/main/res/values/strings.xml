@@ -1,85 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">My Application</string>
-    <string name="navigation_drawer_open">Open navigation drawer</string>
-    <string name="navigation_drawer_close">Close navigation drawer</string>
-    <string name="nav_header_title">Android Studio</string>
-    <string name="nav_header_subtitle">android.studio@android.com</string>
+    <!-- App Name -->
+    <string name="app_name">💰 스마트 가계부</string>
+
+    <!-- Bottom Navigation -->
+    <string name="menu_home">홈</string>
+    <string name="menu_statistics">분석</string>
+    <string name="menu_assets">자산</string>
+    <string name="menu_profile">프로필</string>
+    <string name="menu_gallery">갤러리</string>
+    <string name="menu_slideshow">슬라이드쇼</string>
+
+    <!-- Navigation Header -->
+    <string name="nav_header_title">스마트 가계부</string>
+    <string name="nav_header_subtitle">영수증 OCR로 간편하게</string>
     <string name="nav_header_desc">Navigation header</string>
-    <string name="action_settings">Settings</string>
 
-    <string name="menu_home">Home</string>
-    <string name="menu_gallery">Gallery</string>
-    <string name="menu_slideshow">Slideshow</string>
+    <!-- Menu Actions -->
+    <string name="action_settings">설정</string>
 
+    <!-- Content Descriptions -->
+    <string name="add_expense_description">지출 추가</string>
+    <string name="menu_description">메뉴</string>
 
+    <!-- Home Screen -->
+    <string name="monthly_spending">이번 달 지출</string>
+    <string name="today_spending">오늘</string>
+    <string name="weekly_spending">이번 주</string>
+    <string name="spending_analysis">지출 분석</string>
+    <string name="spending_analysis_subtitle">카테고리별 지출 현황을 확인하세요</string>
+    <string name="category_ratio">카테고리별 비율</string>
+    <string name="detailed_breakdown">상세 내역</string>
+
+    <!-- Add Expense Screen -->
+    <string name="add_expense">지출 추가</string>
+    <string name="add_expense_subtitle">새로운 지출 내역을 입력하세요</string>
+    <string name="amount_hint">금액</string>
+    <string name="category_hint">카테고리</string>
+    <string name="payment_method_hint">결제 수단</string>
+    <string name="memo_hint">메모 (선택사항)</string>
+    <string name="save_button">저장하기</string>
+
+    <!-- Daily Screen -->
+    <string name="today_expense">오늘의 지출</string>
+    <string name="expense_count">%d건의 지출</string>
+    <string name="expense_list">지출 내역</string>
+    <string name="select_date">날짜 선택</string>
+    <string name="no_expenses_today">오늘 지출 내역이 없습니다</string>
+    <string name="add_expense_hint">+ 버튼을 눌러 지출을 추가해보세요</string>
+
+    <!-- Login Screen -->
     <string name="login">로그인</string>
     <string name="email">이메일</string>
     <string name="password">비밀번호</string>
-    <string name="go_to_register">아직 회원이 아니신가요? 회원가입</string>
-
-    <string name="register_title">회원가입</string>
-    <string name="hint_email">이메일</string>
-    <string name="hint_password">비밀번호</string>
+    <string name="google_login">Google로 로그인</string>
+    <string name="register_prompt">계정이 없으신가요?</string>
     <string name="register">회원가입</string>
+    <string name="or_divider">또는</string>
+    <string name="app_subtitle">영수증 OCR로 간편하게 관리하세요</string>
 
+    <!-- Profile & Settings -->
+    <string name="profile">프로필</string>
+    <string name="user_info">사용자 정보</string>
+    <string name="settings">설정</string>
+    <string name="logout">로그아웃</string>
+    <string name="logout_success">로그아웃 되었습니다</string>
 
-    <string name="tab_layout_desc">상단 탭</string>
-    <string name="fab_add_desc">추가</string>
+    <!-- Assets -->
+    <string name="asset_management">자산 관리</string>
+    <string name="asset_subtitle">결제 수단별 지출 현황을 확인하세요</string>
+    <string name="payment_method_expenses">결제 수단별 지출</string>
+    <string name="total_expenses">총 지출</string>
 
-    <string name="hint_amount">금액 (숫자만)</string>
-    <string name="hint_category">카테고리 (예: 커피전문점)</string>
-    <string name="hint_memo">메모 (선택)</string>
-    <string name="btn_save">지출 저장</string>
+    <!-- Calendar -->
+    <string name="calendar_title">달력</string>
+    <string name="calendar_subtitle">날짜별 지출 내역을 확인하세요</string>
+    <string name="select_date_hint">날짜를 선택해주세요</string>
+    <string name="data_load_failed">데이터 로드 실패</string>
 
-    <string name="category_text">카테고리: %1$s</string>
-    <string name="predicted_spending_text">예측 소비: %1$d원</string>
-    <string name="month_text">월: %1$s</string>
+    <!-- Monthly -->
+    <string name="monthly_analysis">월별 분석</string>
+    <string name="monthly_subtitle">월별 지출 추이를 분석하세요</string>
+    <string name="monthly_expenses_status">월별 지출 현황</string>
 
+    <!-- Spending List -->
+    <string name="all_expenses">전체 내역</string>
+    <string name="all_expenses_subtitle">모든 지출 내역을 확인하고 관리하세요</string>
+    <string name="expense_list_title">지출 목록</string>
+    <string name="no_memo">메모 없음</string>
+
+    <!-- Analysis -->
     <string name="category">카테고리</string>
-    <string name="predicted_spending">예측 소비</string>
+    <string name="predicted_spending">예상 지출</string>
     <string name="month">월</string>
 
-    <string name="analysis_recycler_description">분석 결과 리스트</string>
+    <!-- Edit/Delete -->
+    <string name="edit_expense">지출 내역 수정</string>
+    <string name="delete_expense">지출 내역 삭제</string>
+    <string name="edit_action">수정하기</string>
+    <string name="delete_action">삭제하기</string>
+    <string name="delete_confirmation">정말로 이 지출 내역을 삭제하시겠습니까?</string>
+    <string name="delete_success">지출 내역이 삭제되었습니다!</string>
+    <string name="edit_success">지출 내역이 수정되었습니다!</string>
+    <string name="ocr_generated_info">이 항목은 영수증 OCR로 자동 생성되었습니다.</string>
+    <string name="ocr_info_title">OCR 인식 정보</string>
 
-    <string name="spending_title">지출 입력</string>
-    <string name="save_spending">지출 저장</string>
-    <string name="fab_add_spending">지출 추가 버튼</string>
+    <!-- Dialog Messages -->
+    <string name="add_expense_options">지출 추가</string>
+    <string name="direct_input">직접 입력</string>
+    <string name="camera_capture">카메라 촬영</string>
+    <string name="gallery_select">갤러리 선택</string>
+    <string name="direct_input_desc">수동으로 지출 내역을 입력합니다</string>
+    <string name="camera_desc">영수증을 촬영하여 자동으로 분석합니다</string>
+    <string name="gallery_desc">저장된 영수증 이미지를 선택합니다</string>
+    <string name="cancel">취소</string>
+    <string name="ok">확인</string>
 
-    <string name="amount_hint">금액을 입력하세요</string>
-    <string name="category_hint">카테고리를 입력하세요</string>
-    <string name="memo_hint">메모를 입력하세요</string>
-    <string name="save_button">저장</string>
+    <!-- Snackbar Messages -->
+    <string name="direct_input_mode">직접 입력 모드가 활성화되었습니다</string>
+    <string name="camera_hint">영수증을 선명하게 촬영해주세요</string>
+    <string name="gallery_hint">영수증 이미지를 선택해주세요</string>
+    <string name="camera_permission_required">카메라 권한이 필요합니다</string>
+    <string name="camera_launch_failed">카메라 실행에 실패했습니다</string>
+    <string name="gallery_launch_failed">갤러리 실행에 실패했습니다</string>
+    <string name="image_selection_cancelled">이미지 선택이 취소되었습니다</string>
+    <string name="receipt_analysis_failed">영수증 분석에 실패했습니다</string>
+    <string name="invalid_image_file">유효하지 않은 이미지 파일입니다</string>
+    <string name="image_processing_failed">이미지 처리에 실패했습니다</string>
 
-    <string name="spending_amount">%1$d원</string>
-    <string name="spending_category">분류: %1$s</string>
-    <string name="spending_asset">자산: %1$s</string>
-    <string name="spending_memo">메모: %1$s</string>
-    <string name="spending_date">날짜: %1$s</string>
+    <!-- OCR Processing -->
+    <string name="ocr_processing_title">영수증 분석 중</string>
+    <string name="ocr_processing_message">AI가 영수증을 분석하고 있습니다…\n잠시만 기다려주세요.</string>
 
-    <string name="statistics">통계</string>
-    <string name="assets">자산</string>
-    <string name="more">더보기</string>
+    <!-- Categories -->
+    <string name="category_food">식비</string>
+    <string name="category_cafe">카페</string>
+    <string name="category_transport">교통</string>
+    <string name="category_shopping">쇼핑</string>
+    <string name="category_culture">문화생활</string>
+    <string name="category_medical">의료</string>
+    <string name="category_other">기타</string>
 
+    <!-- Payment Methods -->
+    <string name="payment_cash">현금</string>
+    <string name="payment_debit">체크카드</string>
+    <string name="payment_credit">신용카드</string>
+    <string name="payment_kakaopay">카카오페이</string>
+    <string name="payment_toss">토스</string>
+
+    <!-- Validation Messages -->
+    <string name="amount_required">금액은 필수입니다</string>
+    <string name="amount_numbers_only">금액은 숫자만 입력해주세요</string>
+    <string name="login_required">로그인이 필요합니다</string>
+    <string name="save_success">지출 저장 성공!</string>
+    <string name="save_failed">저장 실패: %s</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">📅 오늘</string>
+    <string name="tab_calendar">📊 달력</string>
+    <string name="tab_monthly">📈 월별</string>
+    <string name="tab_all">📋 전체</string>
+
+    <!-- Common -->
+    <string name="save">저장</string>
+    <string name="delete">삭제</string>
+    <string name="edit">수정</string>
+    <string name="close">닫기</string>
+    <string name="loading">로딩 중...</string>
+    <string name="error">오류</string>
+    <string name="success">성공</string>
+
+    <!-- Google Client ID (Firebase 프로젝트에서 가져온 값) -->
     <string name="default_web_client_id">547148140928-in5knk9bh6rdho4u7hg9ni1g09hlf3ol.apps.googleusercontent.com</string>
-
-    <string-array name="category_array">
-        <item>식비</item>
-        <item>교통</item>
-        <item>쇼핑</item>
-        <item>의료</item>
-        <item>기타</item>
-    </string-array>
-    <!-- Strings related to login -->
-    <string name="prompt_email">Email</string>
-    <string name="prompt_password">Password</string>
-    <string name="action_sign_in">Sign in or register</string>
-    <string name="action_sign_in_short">Sign in</string>
-    <string name="welcome">"Welcome!"</string>
-    <string name="invalid_username">Not a valid username</string>
-    <string name="invalid_password">Password must be >5 characters</string>
-    <string name="login_failed">"Login failed"</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
-
 
 </resources>

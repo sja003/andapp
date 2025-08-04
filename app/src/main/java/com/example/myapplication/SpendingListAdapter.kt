@@ -1,10 +1,11 @@
 package com.example.myapplication
 
+import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.Timestamp
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -14,48 +15,16 @@ class SpendingListAdapter(
     private val onItemClick: (SpendingItem) -> Unit
 ) : RecyclerView.Adapter<SpendingListAdapter.SpendingViewHolder>() {
 
-    // 더 명확한 시간 표시 (전체 목록에서는 날짜도 포함)
-    private val fullDateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-    private val numberFormat = NumberFormat.getNumberInstance(Locale.getDefault())
-
-    // 상대적 시간 표시 함수 (전체 목록용 - 더 상세한 정보)
-    private fun getDetailedRelativeTime(timestamp: Timestamp): String {
-        val now = System.currentTimeMillis()
-        val diff = now - timestamp.toDate().time
-        val calendar = Calendar.getInstance()
-        val timestampCalendar = Calendar.getInstance().apply {
-            time = timestamp.toDate()
-        }
-
-        return when {
-            // 오늘인 경우
-            calendar.get(Calendar.DAY_OF_YEAR) == timestampCalendar.get(Calendar.DAY_OF_YEAR) &&
-                    calendar.get(Calendar.YEAR) == timestampCalendar.get(Calendar.YEAR) -> {
-                when {
-                    diff < 60000 -> "방금 전"
-                    diff < 3600000 -> "${diff / 60000}분 전"
-                    diff < 86400000 -> "${diff / 3600000}시간 전"
-                    else -> "오늘 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(timestamp.toDate())}"
-                }
-            }
-            // 어제인 경우
-            calendar.apply { add(Calendar.DAY_OF_YEAR, -1) }.get(Calendar.DAY_OF_YEAR) ==
-                    timestampCalendar.get(Calendar.DAY_OF_YEAR) &&
-                    calendar.get(Calendar.YEAR) == timestampCalendar.get(Calendar.YEAR) -> {
-                "어제 ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(timestamp.toDate())}"
-            }
-            // 그 외의 경우
-            else -> fullDateFormat.format(timestamp.toDate())
-        }
-    }
+    private val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
+    private val numberFormat = NumberFormat.getInstance(Locale.KOREA)
 
     inner class SpendingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var categoryText: TextView? = null
-        var amountText: TextView? = null
-        var assetText: TextView? = null
-        var memoText: TextView? = null
-        var dateText: TextView? = null
-        var ocrBadge: TextView? = null
+        private val categoryText: TextView = itemView.findViewWithTag("category")
+        private val amountText: TextView = itemView.findViewWithTag("amount")
+        private val assetText: TextView = itemView.findViewWithTag("asset")
+        private val memoText: TextView = itemView.findViewWithTag("memo")
+        private val dateText: TextView = itemView.findViewWithTag("date")
+        private val ocrBadge: TextView = itemView.findViewWithTag("ocr_badge")
 
         init {
             itemView.setOnClickListener {
@@ -67,47 +36,30 @@ class SpendingListAdapter(
         }
 
         fun bind(item: SpendingItem) {
-            if (categoryText == null) {
-                categoryText = itemView.findViewWithTag("category")
-                amountText = itemView.findViewWithTag("amount")
-                assetText = itemView.findViewWithTag("asset")
-                memoText = itemView.findViewWithTag("memo")
-                dateText = itemView.findViewWithTag("date")
-                ocrBadge = itemView.findViewWithTag("ocr_badge")
-            }
+            categoryText.text = getCategoryIcon(item.category) + " " + item.category
+            amountText.text = "-${numberFormat.format(item.amount)}원"
+            assetText.text = getAssetIcon(item.asset) + " " + item.asset
+            memoText.text = if (item.memo.isNotEmpty()) item.memo else "메모 없음"
 
-            categoryText?.text = "📂 ${item.category}"
-            amountText?.text = "${numberFormat.format(item.amount)}원"
-            assetText?.text = "💳 ${item.asset}"
-            memoText?.text = if (item.memo.isNotEmpty()) "📝 ${item.memo}" else "메모 없음"
-
-            // 개선된 시간 표시 - 상세한 상대적 시간 사용
             item.date?.let { timestamp ->
-                dateText?.text = "📅 ${getDetailedRelativeTime(timestamp)}"
+                dateText.text = dateFormat.format(timestamp.toDate())
             }
 
             if (item.isOcrGenerated) {
-                ocrBadge?.visibility = View.VISIBLE
-                ocrBadge?.text = "🤖 OCR"
+                ocrBadge.visibility = View.VISIBLE
+                ocrBadge.text = "🤖"
             } else {
-                ocrBadge?.visibility = View.GONE
+                ocrBadge.visibility = View.GONE
             }
 
-            val backgroundColor = when (item.category) {
-                "식비" -> android.graphics.Color.parseColor("#FFE0B2")
-                "카페" -> android.graphics.Color.parseColor("#D7CCC8")
-                "교통" -> android.graphics.Color.parseColor("#BBDEFB")
-                "쇼핑" -> android.graphics.Color.parseColor("#F8BBD9")
-                "문화생활" -> android.graphics.Color.parseColor("#E1BEE7")
-                "의료" -> android.graphics.Color.parseColor("#FFCDD2")
-                else -> android.graphics.Color.parseColor("#F5F5F5")
-            }
+            // 카테고리별 배경색
+            val backgroundColor = getCategoryColor(item.category)
             itemView.setBackgroundColor(backgroundColor)
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SpendingViewHolder {
-        val itemView = createItemView(parent)
+        val itemView = createSpendingItemView(parent)
         return SpendingViewHolder(itemView)
     }
 
@@ -117,7 +69,7 @@ class SpendingListAdapter(
 
     override fun getItemCount(): Int = spendingList.size
 
-    private fun createItemView(parent: ViewGroup): View {
+    private fun createSpendingItemView(parent: ViewGroup): View {
         val context = parent.context
 
         val cardView = androidx.cardview.widget.CardView(context).apply {
@@ -125,46 +77,45 @@ class SpendingListAdapter(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(24, 12, 24, 12)
+                setMargins(0, 4, 0, 4)
             }
-            radius = 16f
-            cardElevation = 4f
+            radius = 12f
+            cardElevation = 2f
         }
 
-        val mainLayout = android.widget.LinearLayout(context).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(40, 32, 40, 32)
+        val mainLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 12, 16, 12)
         }
 
-        // 상단 레이아웃 (카테고리, 금액, OCR 뱃지)
-        val topLayout = android.widget.LinearLayout(context).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
+        // 상단 (카테고리, OCR 뱃지, 금액)
+        val topLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
         }
 
         val categoryText = TextView(context).apply {
-            textSize = 16f
+            textSize = 14f
             setTypeface(null, android.graphics.Typeface.BOLD)
-            layoutParams = android.widget.LinearLayout.LayoutParams(
+            layoutParams = LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
             )
             tag = "category"
         }
 
         val ocrBadge = TextView(context).apply {
-            textSize = 12f
-            setPadding(16, 8, 16, 8)
-            setBackgroundColor(android.graphics.Color.parseColor("#E3F2FD"))
-            setTextColor(android.graphics.Color.parseColor("#1976D2"))
+            textSize = 10f
+            setPadding(6, 3, 6, 3)
+            setBackgroundColor(Color.parseColor("#E3F2FD"))
+            setTextColor(Color.parseColor("#1976D2"))
             visibility = View.GONE
             tag = "ocr_badge"
         }
 
         val amountText = TextView(context).apply {
-            textSize = 18f
+            textSize = 14f
             setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(android.graphics.Color.parseColor("#D32F2F"))
-            gravity = android.view.Gravity.END
+            setTextColor(Color.parseColor("#D32F2F"))
             tag = "amount"
         }
 
@@ -172,46 +123,81 @@ class SpendingListAdapter(
         topLayout.addView(ocrBadge)
         topLayout.addView(amountText)
 
-        // 중간 레이아웃 (자산, 개선된 날짜/시간)
-        val middleLayout = android.widget.LinearLayout(context).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            setPadding(0, 16, 0, 0)
+        // 중간 (메모)
+        val memoText = TextView(context).apply {
+            textSize = 12f
+            setTextColor(Color.parseColor("#666666"))
+            setPadding(0, 4, 0, 4)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            tag = "memo"
+        }
+
+        // 하단 (결제수단, 날짜)
+        val bottomLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
         }
 
         val assetText = TextView(context).apply {
-            textSize = 14f
-            layoutParams = android.widget.LinearLayout.LayoutParams(
+            textSize = 12f
+            setTextColor(Color.parseColor("#999999"))
+            layoutParams = LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
             )
             tag = "asset"
         }
 
         val dateText = TextView(context).apply {
-            textSize = 14f
-            gravity = android.view.Gravity.END
-            setTextColor(android.graphics.Color.parseColor("#757575"))
+            textSize = 12f
+            setTextColor(Color.parseColor("#999999"))
             tag = "date"
         }
 
-        middleLayout.addView(assetText)
-        middleLayout.addView(dateText)
+        bottomLayout.addView(assetText)
+        bottomLayout.addView(dateText)
 
-        // 메모 텍스트
-        val memoText = TextView(context).apply {
-            textSize = 14f
-            setPadding(0, 12, 0, 0)
-            setTextColor(android.graphics.Color.parseColor("#424242"))
-            maxLines = 2
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            tag = "memo"
-        }
-
-        // 레이아웃 조립
         mainLayout.addView(topLayout)
-        mainLayout.addView(middleLayout)
         mainLayout.addView(memoText)
+        mainLayout.addView(bottomLayout)
         cardView.addView(mainLayout)
 
         return cardView
+    }
+
+    private fun getCategoryIcon(category: String): String {
+        return when (category) {
+            "식비" -> "🍽️"
+            "카페" -> "☕"
+            "교통" -> "🚗"
+            "쇼핑" -> "🛍️"
+            "문화생활" -> "🎬"
+            "의료" -> "💊"
+            "OCR" -> "🧾"
+            else -> "📦"
+        }
+    }
+
+    private fun getAssetIcon(asset: String): String {
+        return when (asset) {
+            "현금" -> "💵"
+            "체크카드" -> "💳"
+            "신용카드" -> "💎"
+            "카카오페이" -> "💛"
+            "토스" -> "💙"
+            "OCR 인식" -> "🤖"
+            else -> "💰"
+        }
+    }
+
+    private fun getCategoryColor(category: String): Int {
+        return when (category) {
+            "식비" -> Color.parseColor("#FFF3E0")
+            "카페" -> Color.parseColor("#EFEBE9")
+            "교통" -> Color.parseColor("#E3F2FD")
+            "쇼핑" -> Color.parseColor("#FCE4EC")
+            "문화생활" -> Color.parseColor("#F3E5F5")
+            "의료" -> Color.parseColor("#FFEBEE")
+            else -> Color.parseColor("#F5F5F5")
+        }
     }
 }

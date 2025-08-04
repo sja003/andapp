@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -16,6 +17,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import com.example.myapplication.databinding.ActivityMainBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import java.io.File
 import java.text.SimpleDateFormat
@@ -41,73 +44,102 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setupUI()
+        setupBottomNavigation()
+        setupFAB()
+
         // 기본 화면: 홈
         loadFragment(HomeFragment())
+    }
 
-        // 하단 탭 처리
+    private fun setupUI() {
+        // 툴바 설정
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.title = "💰 스마트 가계부"
+
+        // 시스템 바 색상 설정
+        window.statusBarColor = ContextCompat.getColor(this, R.color.primary_color)
+    }
+
+    private fun setupBottomNavigation() {
         binding.bottomNavigationView.setOnItemSelectedListener { item ->
-            when (item.itemId) {
+            val fragment = when (item.itemId) {
                 R.id.menu_home -> {
-                    loadFragment(HomeFragment())
-                    true
+                    binding.toolbar.title = "💰 스마트 가계부"
+                    HomeFragment()
                 }
-
                 R.id.menu_statistics -> {
-                    loadFragment(AnalysisFragment())
-                    true
+                    binding.toolbar.title = "📊 지출 분석"
+                    AnalysisFragment()
                 }
-
                 R.id.menu_assets -> {
-                    loadFragment(AssetFragment())
-                    true
+                    binding.toolbar.title = "💼 자산 관리"
+                    AssetFragment()
                 }
-
                 R.id.menu_login -> {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
-                        loadFragment(MoreFragment())
-                        true
+                        binding.toolbar.title = "👤 프로필"
+                        MoreFragment()
                     } else {
-                        startActivity(Intent(this, LoginActivity::class.java))
-                        false
+                        showLoginPrompt()
+                        return@setOnItemSelectedListener false
                     }
                 }
-
-                else -> false
+                else -> return@setOnItemSelectedListener false
             }
-        }
 
-        // + 버튼 눌렀을 때
-        binding.fab.setOnClickListener {
-            showAddOptionDialog()
+            loadFragment(fragment)
+            true
         }
     }
 
-    private fun showAddOptionDialog() {
+    private fun setupFAB() {
+        binding.fab.setOnClickListener {
+            showModernAddOptionDialog()
+        }
+    }
+
+    private fun showModernAddOptionDialog() {
         val options = arrayOf(
-            "📝 지출 내역 직접 입력",
-            "📷 카메라로 영수증 촬영",
-            "🖼️ 갤러리에서 영수증 선택"
+            "📝 직접 입력",
+            "📷 카메라 촬영",
+            "🖼️ 갤러리 선택"
         )
 
-        AlertDialog.Builder(this)
-            .setTitle("💰 지출 추가 방법")
+        val descriptions = arrayOf(
+            "수동으로 지출 내역을 입력합니다",
+            "영수증을 촬영하여 자동으로 분석합니다",
+            "저장된 영수증 이미지를 선택합니다"
+        )
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("💸 지출 추가")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
-                        // 직접 입력
                         loadFragment(SpendingFragment())
-                        Toast.makeText(this, "✏️ 직접 입력 모드", Toast.LENGTH_SHORT).show()
+                        binding.bottomNavigationView.selectedItemId = R.id.menu_home
+                        showSnackbar("✏️ 직접 입력 모드가 활성화되었습니다")
                     }
                     1 -> {
-                        // 카메라 촬영
                         checkCameraPermissionAndLaunch()
                     }
                     2 -> {
-                        // 갤러리 선택
                         openGallery()
                     }
                 }
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun showLoginPrompt() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("🔐 로그인 필요")
+            .setMessage("이 기능을 사용하려면 로그인이 필요합니다.")
+            .setPositiveButton("로그인") { _, _ ->
+                startActivity(Intent(this, LoginActivity::class.java))
             }
             .setNegativeButton("취소", null)
             .show()
@@ -136,11 +168,11 @@ class MainActivity : AppCompatActivity() {
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
                 startActivityForResult(intent, CAMERA_REQUEST_CODE)
 
-                Toast.makeText(this, "📸 영수증을 촬영해주세요", Toast.LENGTH_SHORT).show()
+                showSnackbar("📸 영수증을 선명하게 촬영해주세요")
             }
         } catch (e: Exception) {
             Log.e(TAG, "카메라 실행 실패", e)
-            Toast.makeText(this, "❌ 카메라 실행 실패: ${e.message}", Toast.LENGTH_LONG).show()
+            showErrorSnackbar("❌ 카메라 실행에 실패했습니다")
         }
     }
 
@@ -152,7 +184,7 @@ class MainActivity : AppCompatActivity() {
 
             if (intent.resolveActivity(packageManager) != null) {
                 startActivityForResult(intent, GALLERY_REQUEST_CODE)
-                Toast.makeText(this, "🖼️ 영수증 이미지를 선택해주세요", Toast.LENGTH_SHORT).show()
+                showSnackbar("🖼️ 영수증 이미지를 선택해주세요")
             } else {
                 val fileIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "image/*"
@@ -165,7 +197,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "갤러리 실행 실패", e)
-            Toast.makeText(this, "❌ 갤러리 실행 실패: ${e.message}", Toast.LENGTH_LONG).show()
+            showErrorSnackbar("❌ 갤러리 실행에 실패했습니다")
         }
     }
 
@@ -186,7 +218,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 launchCamera()
             } else {
-                Toast.makeText(this, "❌ 카메라 권한이 필요합니다", Toast.LENGTH_LONG).show()
+                showErrorSnackbar("❌ 카메라 권한이 필요합니다")
             }
         }
     }
@@ -199,7 +231,7 @@ class MainActivity : AppCompatActivity() {
                 CAMERA_REQUEST_CODE -> {
                     photoFile?.let { file ->
                         Log.d(TAG, "카메라 촬영 완료: ${file.absolutePath}")
-                        showProcessingDialog()
+                        showModernProcessingDialog()
                         processImageFile(file)
                     }
                 }
@@ -207,28 +239,28 @@ class MainActivity : AppCompatActivity() {
                 GALLERY_REQUEST_CODE -> {
                     data?.data?.let { uri ->
                         Log.d(TAG, "갤러리 선택 완료: $uri")
-                        showProcessingDialog()
+                        showModernProcessingDialog()
                         processImageUri(uri)
                     }
                 }
             }
         } else {
-            Toast.makeText(this, "🚫 이미지 선택이 취소되었습니다", Toast.LENGTH_SHORT).show()
+            showSnackbar("🚫 이미지 선택이 취소되었습니다")
         }
     }
 
-    private fun showProcessingDialog() {
+    private fun showModernProcessingDialog() {
         progressDialog = ProgressDialog(this).apply {
             setTitle("🔍 영수증 분석 중")
-            setMessage("잠시만 기다려주세요...")
+            setMessage("AI가 영수증을 분석하고 있습니다...\n잠시만 기다려주세요.")
             setCancelable(false)
             show()
         }
 
-        // 5초 후 자동으로 닫기 (API 응답이 없을 경우 대비)
+        // 타임아웃 설정
         binding.root.postDelayed({
             hideProcessingDialog()
-        }, 5000)
+        }, 30000) // 30초 타임아웃
     }
 
     private fun hideProcessingDialog() {
@@ -247,20 +279,20 @@ class MainActivity : AppCompatActivity() {
             try {
                 ReceiptOcrProcessor.processImage(this, file)
 
-                // OCR 처리 완료 후 로딩 다이얼로그 숨기기 (3초 후)
+                // OCR 처리 완료 후 로딩 다이얼로그 숨기기
                 binding.root.postDelayed({
                     hideProcessingDialog()
-                }, 3000)
+                }, 5000)
 
             } catch (e: Exception) {
                 hideProcessingDialog()
                 Log.e(TAG, "OCR 처리 실패", e)
-                Toast.makeText(this, "❌ OCR 처리 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                showErrorSnackbar("❌ 영수증 분석에 실패했습니다")
             }
         } else {
             hideProcessingDialog()
             Log.e(TAG, "유효하지 않은 파일: ${file.absolutePath}")
-            Toast.makeText(this, "❌ 유효하지 않은 이미지 파일", Toast.LENGTH_LONG).show()
+            showErrorSnackbar("❌ 유효하지 않은 이미지 파일입니다")
         }
     }
 
@@ -281,14 +313,32 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             hideProcessingDialog()
             Log.e(TAG, "갤러리 이미지 처리 실패", e)
-            Toast.makeText(this, "❌ 이미지 처리 실패: ${e.message}", Toast.LENGTH_LONG).show()
+            showErrorSnackbar("❌ 이미지 처리에 실패했습니다")
         }
     }
 
     private fun loadFragment(fragment: Fragment) {
         supportFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right
+            )
             .replace(R.id.fragment_container, fragment)
             .commit()
+    }
+
+    private fun showSnackbar(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
+            .setBackgroundTint(ContextCompat.getColor(this, R.color.info_color))
+            .setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            .show()
+    }
+
+    private fun showErrorSnackbar(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
+            .setBackgroundTint(ContextCompat.getColor(this, R.color.error_color))
+            .setTextColor(ContextCompat.getColor(this, android.R.color.white))
+            .show()
     }
 
     override fun onDestroy() {

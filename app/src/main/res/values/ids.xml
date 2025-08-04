@@ -1,0 +1,21 @@
+<resources>
+    <item name="tv_event_type_icon" type="id" />
+    <item name="tv_event_title" type="id" />
+    <item name="tv_event_description" type="id" />
+    <item name="tv_event_time" type="id" />
+    <item name="tv_event_category" type="id" />
+    <item name="tv_date_title" type="id" />
+    <item name="rv_events" type="id" />
+    <item name="tv_empty_message" type="id" />
+    <item name="btn_add_event" type="id" />
+    <item name="layout_empty_state" type="id" />
+    <item name="layout_day_summary" type="id" />
+    <item name="tv_events_count" type="id" />
+    <item name="tv_spending_total" type="id" />
+    <item name="edit_event_title" type="id" />
+    <item name="edit_event_description" type="id" />
+    <item name="spinner_repeat" type="id" />
+    <item name="layout_repeat_count" type="id" />
+    <item name="edit_repeat_count" type="id" />
+    <item name="view_status_indicator" type="id" />
+</resources>

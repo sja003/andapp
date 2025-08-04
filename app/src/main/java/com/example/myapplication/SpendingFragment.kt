@@ -51,10 +51,10 @@ class SpendingFragment : Fragment() {
 
     private fun setupSaveButton() {
         binding.saveButton.setOnClickListener {
-            val amountText = binding.inputAmount.text.toString()
-            val category = binding.inputCategory.selectedItem.toString()
-            val asset = binding.inputAsset.selectedItem.toString()
-            val memo = binding.inputMemo.text.toString()
+            val amountText = binding.inputAmount.text?.toString() ?: ""
+            val category = binding.inputCategory.selectedItem?.toString() ?: ""
+            val asset = binding.inputAsset.selectedItem?.toString() ?: ""
+            val memo = binding.inputMemo.text?.toString() ?: ""
 
             if (amountText.isEmpty()) {
                 Toast.makeText(requireContext(), "금액은 필수입니다", Toast.LENGTH_SHORT).show()
@@ -119,8 +119,11 @@ class SpendingFragment : Fragment() {
     }
 
     private fun clearInputs() {
-        binding.inputAmount.text.clear()
-        binding.inputMemo.text.clear()
+        binding.inputAmount.setText("")
+        binding.inputMemo.setText("")
+        // 스피너도 초기화
+        binding.inputCategory.setSelection(0)
+        binding.inputAsset.setSelection(0)
     }
 
     private fun navigateToHome() {

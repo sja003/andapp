@@ -1,42 +1,99 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="20dp">
 
-    <EditText
-        android:id="@+id/editEventTitle"
+    <!-- 일정 제목 입력 -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="일정 제목"
-        android:inputType="text" />
-
+        android:text="일정 제목"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+    
     <EditText
-        android:id="@+id/editEventMemo"
+        android:id="@+id/edit_event_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="메모 (선택)"
-        android:inputType="text" />
+        android:hint="일정 제목을 입력하세요"
+        android:inputType="text"
+        android:maxLines="1"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/input_background" />
 
+    <!-- 일정 설명 입력 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="설명 (선택사항)"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+    
+    <EditText
+        android:id="@+id/edit_event_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="일정 설명을 입력하세요"
+        android:inputType="textMultiLine"
+        android:maxLines="3"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/input_background" />
+
+    <!-- 반복 설정 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="🔄 반복 설정"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/spinner_repeat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp" />
+
+    <!-- 반복 횟수 입력 -->
     <LinearLayout
+        android:id="@+id/layout_repeat_count"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="16dp"
-        android:gravity="end">
-
-        <Button
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+        
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="취소" />
-
-        <Button
-            android:id="@+id/btnAdd"
-            android:layout_width="wrap_content"
+            android:text="반복 횟수 (기본값 적용시 비워두세요)"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+        
+        <EditText
+            android:id="@+id/edit_repeat_count"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="추가"
-            android:layout_marginStart="10dp" />
+            android:hint="반복 횟수를 입력하세요"
+            android:inputType="number"
+            android:maxLines="1"
+            android:background="@drawable/input_background" />
+    
     </LinearLayout>
+
+    <!-- 안내 텍스트 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="💡 팁: 반복 횟수를 비워두면 기본값이 적용됩니다\n(매일: 30회, 매주: 12회, 매월: 12회)"
+        android:textSize="12sp"
+        android:textColor="@android:color/darker_gray"
+        android:lineSpacingExtra="2dp" />
+
 </LinearLayout>

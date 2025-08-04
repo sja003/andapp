@@ -1,13 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="darker_gray">#A9A9A9</color>
+    <!-- Primary Colors - 초록색 테마 -->
+    <color name="primary_color">#4CAF50</color>
+    <color name="primary_dark">#388E3C</color>
+    <color name="primary_light">#66BB6A</color>
+
+    <!-- Secondary Colors - 보완 색상 -->
+    <color name="secondary_color">#2E7D32</color>
+    <color name="secondary_dark">#1B5E20</color>
+    <color name="secondary_light">#81C784</color>
+
+    <!-- Background Colors -->
+    <color name="background_color">#F1F8E9</color>
+    <color name="surface_color">#FFFFFF</color>
+    <color name="card_background">#FFFFFF</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#1A1D29</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+
+    <!-- Basic Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Gradient Colors - 초록색 그라디언트 -->
+    <color name="gradient_start">#4CAF50</color>
+    <color name="gradient_end">#8BC34A</color>
+
+    <color name="gradient_analysis_start">#66BB6A</color>
+    <color name="gradient_analysis_end">#4CAF50</color>
+
+    <color name="gradient_expense_start">#81C784</color>
+    <color name="gradient_expense_end">#4CAF50</color>
+
+    <!-- Category Colors - 카테고리별 색상 (초록 계열로 조정) -->
+    <color name="category_food">#FF8A65</color>
+    <color name="category_cafe">#8D6E63</color>
+    <color name="category_transport">#42A5F5</color>
+    <color name="category_shopping">#AB47BC</color>
+    <color name="category_culture">#EC407A</color>
+    <color name="category_medical">#EF5350</color>
+    <color name="category_ocr">#66BB6A</color>
+    <color name="category_other">#78909C</color>
+
+    <!-- Status Colors -->
+    <color name="success_color">#4CAF50</color>
+    <color name="error_color">#F44336</color>
+    <color name="warning_color">#FF9800</color>
+    <color name="info_color">#2196F3</color>
+    <color name="accent_color">#FF9800</color>
+
+    <!-- Component Colors -->
+    <color name="fab_color">@color/primary_color</color>
+    <color name="fab_ripple_color">#4D4CAF50</color>
+
+    <color name="input_stroke_color">@color/primary_light</color>
+    <color name="hint_color">@color/text_secondary</color>
+    <color name="icon_tint">@color/primary_color</color>
+
+    <!-- White Variants -->
+    <color name="white_100">#FFFFFF</color>
+    <color name="white_90">#E6FFFFFF</color>
+    <color name="white_80">#CCFFFFFF</color>
+    <color name="white_70">#B3FFFFFF</color>
+    <color name="white_30">#4DFFFFFF</color>
+
+    <!-- Gray Variants -->
+    <color name="gray_50">#F9FAFB</color>
+    <color name="gray_100">#F3F4F6</color>
+    <color name="gray_200">#E5E7EB</color>
+    <color name="gray_300">#D1D5DB</color>
+    <color name="gray_400">#9CA3AF</color>
+    <color name="gray_500">#6B7280</color>
+    <color name="gray_600">#4B5563</color>
+    <color name="gray_700">#374151</color>
+    <color name="gray_800">#1F2937</color>
+    <color name="gray_900">#111827</color>
 
 
+
+    <!-- Bottom Navigation -->
+    <color name="bottom_nav_selected">@color/primary_color</color>
+    <color name="bottom_nav_unselected">@color/gray_400</color>
 </resources>
