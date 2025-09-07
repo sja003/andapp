@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import android.animation.ValueAnimator
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,6 +41,13 @@ class HomeFragment : Fragment() {
 
         setupViewPager()
         loadSummaryData()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 화면이 다시 보일 때마다 데이터 새로고침
+        loadSummaryData()
+        Log.d("HomeFragment", "onResume - 데이터 새로고침")
     }
 
     private fun setupViewPager() {
@@ -124,7 +132,7 @@ class HomeFragment : Fragment() {
                         weeklyTotal += amount
                     }
 
-                    // 이번 달 지출 (오타 수정: expenseCallendar -> expenseCalendar)
+                    // 이번 달 지출
                     if (expenseCalendar.after(monthStart)) {
                         monthlyTotal += amount
                     }
@@ -133,7 +141,10 @@ class HomeFragment : Fragment() {
                 // UI 업데이트 (애니메이션과 함께)
                 updateSummaryUI(todayTotal, weeklyTotal, monthlyTotal)
 
+                Log.d("HomeFragment", "요약 데이터 로드 완료: 오늘 ￦$todayTotal, 주간 ￦$weeklyTotal, 월간 ￦$monthlyTotal")
+
             } catch (e: Exception) {
+                Log.e("HomeFragment", "요약 데이터 로드 실패", e)
                 // 에러 처리
                 binding.tvMonthlyTotal.text = "데이터 로드 실패"
                 binding.tvTodayTotal.text = "￦0"
@@ -177,12 +188,6 @@ class HomeFragment : Fragment() {
         }
 
         animator.start()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // 화면이 다시 보일 때마다 데이터 새로고침
-        loadSummaryData()
     }
 
     override fun onDestroyView() {

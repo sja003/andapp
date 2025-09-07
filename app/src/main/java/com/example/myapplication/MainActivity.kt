@@ -63,34 +63,35 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupBottomNavigation() {
         binding.bottomNavigationView.setOnItemSelectedListener { item ->
-            val fragment = when (item.itemId) {
+            when (item.itemId) {
                 R.id.menu_home -> {
                     binding.toolbar.title = "💰 스마트 가계부"
-                    HomeFragment()
+                    loadFragment(HomeFragment())
+                    true
                 }
                 R.id.menu_statistics -> {
                     binding.toolbar.title = "📊 지출 분석"
-                    AnalysisFragment()
+                    loadFragment(AnalysisFragment())
+                    true
                 }
                 R.id.menu_assets -> {
                     binding.toolbar.title = "💼 자산 관리"
-                    AssetFragment()
+                    loadFragment(AssetFragment())
+                    true
                 }
                 R.id.menu_login -> {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user != null) {
                         binding.toolbar.title = "👤 프로필"
-                        MoreFragment()
+                        loadFragment(MoreFragment())
+                        true
                     } else {
                         showLoginPrompt()
-                        return@setOnItemSelectedListener false
+                        false
                     }
                 }
-                else -> return@setOnItemSelectedListener false
+                else -> false
             }
-
-            loadFragment(fragment)
-            true
         }
     }
 
@@ -107,19 +108,12 @@ class MainActivity : AppCompatActivity() {
             "🖼️ 갤러리 선택"
         )
 
-        val descriptions = arrayOf(
-            "수동으로 지출 내역을 입력합니다",
-            "영수증을 촬영하여 자동으로 분석합니다",
-            "저장된 영수증 이미지를 선택합니다"
-        )
-
         MaterialAlertDialogBuilder(this)
             .setTitle("💸 지출 추가")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
-                        loadFragment(SpendingFragment())
-                        binding.bottomNavigationView.selectedItemId = R.id.menu_home
+                        openSpending()
                         showSnackbar("✏️ 직접 입력 모드가 활성화되었습니다")
                     }
                     1 -> {
@@ -143,6 +137,28 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("취소", null)
             .show()
+    }
+
+    // SpendingFragment 열기 - 백스택에 추가
+    private fun openSpending() {
+        try {
+            supportFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right,
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right
+                )
+                .replace(R.id.fragment_container, SpendingFragment())
+                .addToBackStack("spending")
+                .commit()
+
+            binding.toolbar.title = "✏️ 지출 입력"
+            Log.d(TAG, "SpendingFragment 열기 성공")
+        } catch (e: Exception) {
+            Log.e(TAG, "SpendingFragment 열기 실패", e)
+            showErrorSnackbar("❌ 지출 입력 화면을 열 수 없습니다")
+        }
     }
 
     private fun checkCameraPermissionAndLaunch() {
@@ -318,13 +334,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction()
-            .setCustomAnimations(
-                android.R.anim.slide_in_left,
-                android.R.anim.slide_out_right
-            )
-            .replace(R.id.fragment_container, fragment)
-            .commit()
+        try {
+            // 백스택 초기화 (단, SpendingFragment는 제외)
+            val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
+            if (currentFragment !is SpendingFragment) {
+                // SpendingFragment가 아닌 경우에만 백스택 클리어
+                clearBackStack()
+            }
+
+            supportFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    android.R.anim.slide_in_left,
+                    android.R.anim.slide_out_right
+                )
+                .replace(R.id.fragment_container, fragment)
+                .commit()
+
+            Log.d(TAG, "Fragment 로드 성공: ${fragment.javaClass.simpleName}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Fragment 로드 실패", e)
+            showErrorSnackbar("❌ 화면 전환에 실패했습니다")
+        }
+    }
+
+    private fun clearBackStack() {
+        try {
+            val backStackCount = supportFragmentManager.backStackEntryCount
+            for (i in 0 until backStackCount) {
+                supportFragmentManager.popBackStackImmediate()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "백스택 클리어 실패", e)
+        }
     }
 
     private fun showSnackbar(message: String) {
@@ -339,6 +380,29 @@ class MainActivity : AppCompatActivity() {
             .setBackgroundTint(ContextCompat.getColor(this, R.color.error_color))
             .setTextColor(ContextCompat.getColor(this, android.R.color.white))
             .show()
+    }
+
+    // 뒤로가기 버튼 처리
+    override fun onBackPressed() {
+        try {
+            if (supportFragmentManager.backStackEntryCount > 0) {
+                // 백스택에 Fragment가 있으면 팝
+                supportFragmentManager.popBackStack()
+
+                // 홈으로 돌아갔다면 하단 네비게이션과 툴바 업데이트
+                binding.bottomNavigationView.selectedItemId = R.id.menu_home
+                binding.toolbar.title = "💰 스마트 가계부"
+
+                Log.d(TAG, "뒤로가기: 백스택 팝")
+            } else {
+                // 홈 화면에서 뒤로가기는 앱 종료
+                super.onBackPressed()
+                Log.d(TAG, "뒤로가기: 앱 종료")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "뒤로가기 처리 실패", e)
+            super.onBackPressed()
+        }
     }
 
     override fun onDestroy() {

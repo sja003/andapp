@@ -4,15 +4,17 @@ import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.text.InputType
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.cardview.widget.CardView
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -24,304 +26,283 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-/**
- * 향상된 달력 프래그먼트 - 일정 관리와 지출 추적 통합
- */
 class CalendarFragment : Fragment() {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private lateinit var calendarView: CalendarView
+
+    // ---- UI ----
+    private lateinit var monthTitle: TextView
+    private lateinit var monthGrid: RecyclerView
+
     private lateinit var selectedDateText: TextView
     private lateinit var dateTotalText: TextView
     private lateinit var dateIndicator: LinearLayout
 
-    private var selectedDate: Calendar = Calendar.getInstance()
+    // 월별 통계 참조
+    private lateinit var eventsStatsView: View
+    private lateinit var spendingStatsView: View
+    private lateinit var activeDaysStatsView: View
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    // ---- 상태 ----
+    private var selectedDate: Calendar = Calendar.getInstance()
+    private val monthCursor: Calendar = Calendar.getInstance() // 현재 표시 월
+
+    // 데코 데이터(yyyy-MM-dd)
+    private val spendDayKeys = mutableSetOf<String>()
+    private val eventDayKeys = mutableSetOf<String>()
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return createCalendarLayout()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupCalendar()
-        loadMonthData()
+        setupInitialState()
+        renderMonth()
+        loadTodayData()
+        loadMonthDecorDataAndRefresh() // 진입 시 데코 로드
     }
+
+    override fun onResume() {
+        super.onResume()
+        loadDateData(selectedDate)
+        loadMonthDecorDataAndRefresh()
+    }
+
+    // ---------- 레이아웃 빌드 ----------
 
     private fun createCalendarLayout(): View {
         val context = requireContext()
-        val scrollView = androidx.core.widget.NestedScrollView(context)
-
-        val mainLayout = LinearLayout(context).apply {
+        val scroll = androidx.core.widget.NestedScrollView(context)
+        val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16, 16, 16, 16)
         }
 
-        // 헤더 카드
-        mainLayout.addView(createHeaderCard())
+        root.addView(createHeaderCard())
+        root.addView(createMonthlyStatsCard())
+        root.addView(createLegendCard())
+        root.addView(createCalendarCard()) // 커스텀 달력
+        root.addView(createDateInfoCard())
 
-        // 월별 통계 카드
-        mainLayout.addView(createMonthlyStatsCard())
-
-        // 범례 및 일정 추가 버튼
-        mainLayout.addView(createLegendCard())
-
-        // 캘린더 카드
-        mainLayout.addView(createCalendarCard())
-
-        // 선택된 날짜 정보 카드
-        mainLayout.addView(createDateInfoCard())
-
-        scrollView.addView(mainLayout)
-        return scrollView
+        scroll.addView(root)
+        return scroll
     }
 
     private fun createHeaderCard(): View {
         val context = requireContext()
-        val cardView = androidx.cardview.widget.CardView(context).apply {
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
+        val card = CardView(context).apply {
+            layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 setMargins(0, 0, 0, 16)
             }
             radius = 16f
             cardElevation = 4f
         }
-
-        val layout = LinearLayout(context).apply {
+        val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 20, 20, 20)
         }
-
-        val titleText = TextView(context).apply {
+        val title = TextView(context).apply {
             text = "📅 스마트 캘린더"
             textSize = 20f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
-
-        val subtitleText = TextView(context).apply {
+        val sub = TextView(context).apply {
             text = "일정과 지출을 한 번에 관리하세요"
             textSize = 14f
             setPadding(0, 4, 0, 0)
         }
-
-        layout.addView(titleText)
-        layout.addView(subtitleText)
-        cardView.addView(layout)
-        return cardView
+        box.addView(title); box.addView(sub)
+        card.addView(box)
+        return card
     }
 
     private fun createMonthlyStatsCard(): View {
         val context = requireContext()
-        val cardView = androidx.cardview.widget.CardView(context).apply {
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
+        val card = CardView(context).apply {
+            layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 setMargins(0, 0, 0, 16)
             }
             radius = 12f
             cardElevation = 2f
             setCardBackgroundColor(Color.parseColor("#F8F9FA"))
         }
-
-        val layout = LinearLayout(context).apply {
+        val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 16, 20, 16)
         }
-
-        val titleText = TextView(context).apply {
+        val title = TextView(context).apply {
             text = "📈 이번 달 요약"
             textSize = 16f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(Color.parseColor("#1A1D29"))
         }
-
-        val statsContainer = LinearLayout(context).apply {
+        val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 12, 0, 0)
         }
 
-        // 일정 통계
         val eventsStats = createStatsItem(context, "📅", "0", "일정")
-        statsContainer.addView(eventsStats)
-
-        // 구분선
         val divider1 = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(1, 30.dpToPx()).apply {
-                setMargins(16, 0, 16, 0)
-            }
+            layoutParams = LinearLayout.LayoutParams(1, 30.dpToPx()).apply { setMargins(16, 0, 16, 0) }
             setBackgroundColor(Color.parseColor("#E0E0E0"))
         }
-        statsContainer.addView(divider1)
-
-        // 지출 통계
         val spendingStats = createStatsItem(context, "💰", "￦0", "지출")
-        statsContainer.addView(spendingStats)
-
-        // 구분선
         val divider2 = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(1, 30.dpToPx()).apply {
-                setMargins(16, 0, 16, 0)
-            }
+            layoutParams = LinearLayout.LayoutParams(1, 30.dpToPx()).apply { setMargins(16, 0, 16, 0) }
             setBackgroundColor(Color.parseColor("#E0E0E0"))
         }
-        statsContainer.addView(divider2)
-
-        // 활동 일자 통계
         val activeDaysStats = createStatsItem(context, "🎆", "0", "활동일")
-        statsContainer.addView(activeDaysStats)
 
-        layout.addView(titleText)
-        layout.addView(statsContainer)
-        cardView.addView(layout)
+        eventsStatsView = eventsStats
+        spendingStatsView = spendingStats
+        activeDaysStatsView = activeDaysStats
 
-        // 데이터 로드
-        loadMonthlyStats(eventsStats, spendingStats, activeDaysStats)
+        row.addView(eventsStats); row.addView(divider1)
+        row.addView(spendingStats); row.addView(divider2)
+        row.addView(activeDaysStats)
 
-        return cardView
+        box.addView(title); box.addView(row)
+        card.addView(box)
+
+        loadMonthlyStats(eventsStatsView, spendingStatsView, activeDaysStatsView)
+        return card
     }
 
     private fun createStatsItem(context: Context, icon: String, value: String, label: String): View {
-        val container = LinearLayout(context).apply {
+        val cont = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
-            )
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
-
-        val iconText = TextView(context).apply {
-            text = icon
-            textSize = 20f
-            gravity = Gravity.CENTER
-        }
-
+        val iconText = TextView(context).apply { text = icon; textSize = 20f; gravity = Gravity.CENTER }
         val valueText = TextView(context).apply {
-            text = value
-            textSize = 18f
+            text = value; textSize = 18f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(Color.parseColor("#2196F3"))
             gravity = Gravity.CENTER
-            tag = "value_$label" // 데이터 업데이트를 위한 태그
+            tag = "value_$label"
         }
-
-        val labelText = TextView(context).apply {
-            text = label
-            textSize = 12f
-            setTextColor(Color.parseColor("#757575"))
-            gravity = Gravity.CENTER
-        }
-
-        container.addView(iconText)
-        container.addView(valueText)
-        container.addView(labelText)
-
-        return container
+        val labelText = TextView(context).apply { text = label; textSize = 12f; setTextColor(Color.parseColor("#757575")); gravity = Gravity.CENTER }
+        cont.addView(iconText); cont.addView(valueText); cont.addView(labelText)
+        return cont
     }
 
     private fun createLegendCard(): View {
         val context = requireContext()
-        val cardView = androidx.cardview.widget.CardView(context).apply {
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
+        val card = CardView(context).apply {
+            layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 setMargins(0, 0, 0, 16)
             }
             radius = 12f
             cardElevation = 2f
         }
-
-        val layout = LinearLayout(context).apply {
+        val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(16, 12, 16, 12)
         }
-
-        val legendText = TextView(context).apply {
+        val legend = TextView(context).apply {
             text = "📅 일정    💰 지출    🎆 둘 다"
             textSize = 14f
-            layoutParams = LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
-            )
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
-
-        val addEventButton = Button(context).apply {
-            text = "📅 일정 추가"
-            textSize = 12f
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+        val addBtn = Button(context).apply {
+            text = "📅 일정 추가"; textSize = 12f
             setOnClickListener { showAddEventDialog() }
-            // Material 스타일 적용
             setBackgroundColor(Color.parseColor("#4CAF50"))
             setTextColor(Color.WHITE)
         }
-
-        layout.addView(legendText)
-        layout.addView(addEventButton)
-        cardView.addView(layout)
-        return cardView
+        row.addView(legend); row.addView(addBtn)
+        card.addView(row)
+        return card
     }
 
     private fun createCalendarCard(): View {
         val context = requireContext()
-        val cardView = androidx.cardview.widget.CardView(context).apply {
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
+        val card = CardView(context).apply {
+            layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 setMargins(0, 0, 0, 16)
             }
             radius = 16f
             cardElevation = 3f
         }
-
-        val layout = LinearLayout(context).apply {
+        val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 20, 20, 20)
         }
 
-        calendarView = CalendarView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 350.dpToPx()
+        // 상단: 이전/월 타이틀/다음
+        val topRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val prev = ImageButton(context).apply {
+            setImageResource(android.R.drawable.ic_media_previous)
+            setBackgroundColor(Color.TRANSPARENT)
+            setOnClickListener { shiftMonth(-1) }
+        }
+        monthTitle = TextView(context).apply {
+            textSize = 18f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val next = ImageButton(context).apply {
+            setImageResource(android.R.drawable.ic_media_next)
+            setBackgroundColor(Color.TRANSPARENT)
+            setOnClickListener { shiftMonth(1) }
+        }
+        topRow.addView(prev); topRow.addView(monthTitle); topRow.addView(next)
+
+        // 요일 헤더
+        val headerRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 12, 0, 8)
+        }
+        val weekdays = listOf("일","월","화","수","목","금","토")
+        weekdays.forEach {
+            headerRow.addView(TextView(context).apply {
+                text = it; gravity = Gravity.CENTER; setTextColor(Color.parseColor("#616161"))
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+
+        // 7열 그리드
+        monthGrid = RecyclerView(context).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            layoutManager = GridLayoutManager(context, 7)
+            adapter = DayCellAdapter(
+                onClick = { day -> onDayClicked(day) }
             )
         }
 
-        layout.addView(calendarView)
-        cardView.addView(layout)
-        return cardView
+        box.addView(topRow)
+        box.addView(headerRow)
+        box.addView(monthGrid)
+        card.addView(box)
+        return card
     }
 
     private fun createDateInfoCard(): View {
         val context = requireContext()
-        val cardView = androidx.cardview.widget.CardView(context).apply {
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+        val card = CardView(context).apply {
+            layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             radius = 16f
             cardElevation = 3f
         }
-
-        val layout = LinearLayout(context).apply {
+        val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 20, 20, 20)
         }
-
         selectedDateText = TextView(context).apply {
-            text = "날짜를 선택해주세요"
+            text = "오늘"
             textSize = 16f
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
-
         dateTotalText = TextView(context).apply {
             text = "￦0"
             textSize = 18f
@@ -329,170 +310,185 @@ class CalendarFragment : Fragment() {
             setTextColor(Color.parseColor("#4CAF50"))
             setPadding(0, 8, 0, 8)
         }
-
         dateIndicator = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 8, 0, 8)
         }
-
-        val detailButton = Button(context).apply {
+        val detailBtn = Button(context).apply {
             text = "📊 자세히 보기"
             setOnClickListener { showDateDetailBottomSheet() }
-            // Material 스타일 적용
             setBackgroundColor(Color.parseColor("#4CAF50"))
             setTextColor(Color.WHITE)
         }
-
-        layout.addView(selectedDateText)
-        layout.addView(dateTotalText)
-        layout.addView(dateIndicator)
-        layout.addView(detailButton)
-        cardView.addView(layout)
-        return cardView
+        box.addView(selectedDateText); box.addView(dateTotalText); box.addView(dateIndicator); box.addView(detailBtn)
+        card.addView(box)
+        return card
     }
 
-    private fun setupCalendar() {
-        calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
-            selectedDate = Calendar.getInstance().apply {
-                set(year, month, dayOfMonth)
-            }
+    // ---------- 동작 ----------
 
-            val dateFormat = SimpleDateFormat("MM월 dd일 (E)", Locale.KOREAN)
-            selectedDateText.text = dateFormat.format(selectedDate.time)
+    private fun setupInitialState() {
+        val df = SimpleDateFormat("MM월 dd일 (E)", Locale.KOREAN)
+        selectedDateText.text = df.format(selectedDate.time)
+        monthCursor.timeInMillis = System.currentTimeMillis()
+    }
 
-            loadDateData(selectedDate)
+    private fun shiftMonth(diff: Int) {
+        monthCursor.add(Calendar.MONTH, diff)
+        renderMonth()
+        loadMonthDecorDataAndRefresh()
+    }
+
+    private fun renderMonth() {
+        val ymFormat = SimpleDateFormat("yyyy년 M월", Locale.KOREAN)
+        monthTitle.text = ymFormat.format(monthCursor.time)
+
+        val days = buildMonthCells(monthCursor)
+        (monthGrid.adapter as DayCellAdapter).submit(days)
+    }
+
+    private fun buildMonthCells(monthCal: Calendar): List<DayCell> {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = monthCal.timeInMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
+
+        val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) // 1=일 ... 7=토
+        val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        val list = mutableListOf<DayCell>()
+        val before = (firstDayOfWeek - Calendar.SUNDAY + 7) % 7 // 일=0 기준
+        cal.add(Calendar.DAY_OF_MONTH, -before)
+        repeat(before) {
+            list.add(DayCell(date = cal.time, inMonth = false))
+            cal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        repeat(daysInMonth) {
+            list.add(DayCell(date = cal.time, inMonth = true))
+            cal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        while (list.size % 7 != 0 || list.size < 42) {
+            list.add(DayCell(date = cal.time, inMonth = false))
+            cal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        return list
     }
+
+    private fun onDayClicked(cell: DayCell) {
+        if (!cell.inMonth) {
+            monthCursor.time = cell.date
+            renderMonth()
+            loadMonthDecorDataAndRefresh()
+            return
+        }
+        selectedDate = Calendar.getInstance().apply { time = cell.date }
+        val df = SimpleDateFormat("MM월 dd일 (E)", Locale.KOREAN)
+        selectedDateText.text = df.format(selectedDate.time)
+        loadDateData(selectedDate)
+    }
+
+    private fun loadTodayData() {
+        val today = Calendar.getInstance()
+        selectedDate = today
+        val df = SimpleDateFormat("MM월 dd일 (E)", Locale.KOREAN)
+        selectedDateText.text = df.format(selectedDate.time)
+        loadDateData(selectedDate)
+    }
+
+    // ---------- 데이터 로드 ----------
 
     private fun loadMonthlyStats(eventsStats: View, spendingStats: View, activeDaysStats: View) {
-        val currentUser = auth.currentUser ?: return
-
+        val user = auth.currentUser ?: return
         lifecycleScope.launch {
             try {
-                val calendar = Calendar.getInstance()
-                calendar.set(Calendar.DAY_OF_MONTH, 1)
-                val monthStart = calendar.time
+                val cal = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }
+                val monthStart = cal.time
+                cal.add(Calendar.MONTH, 1); cal.add(Calendar.DAY_OF_MONTH, -1)
+                cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
+                val monthEnd = cal.time
 
-                calendar.add(Calendar.MONTH, 1)
-                calendar.add(Calendar.DAY_OF_MONTH, -1)
-                val monthEnd = calendar.time
-
-                // 일정 통계
-                val eventsSnapshot = db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("events")
+                val events = db.collection("users").document(user.uid).collection("events")
                     .whereGreaterThanOrEqualTo("date", Timestamp(monthStart))
                     .whereLessThanOrEqualTo("date", Timestamp(monthEnd))
-                    .get()
-                    .await()
+                    .get().await()
 
-                val totalEvents = eventsSnapshot.size()
-
-                // 지출 통계
-                val spendingSnapshot = db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("spending")
+                val spend = db.collection("users").document(user.uid).collection("spending")
                     .whereGreaterThanOrEqualTo("date", Timestamp(monthStart))
                     .whereLessThanOrEqualTo("date", Timestamp(monthEnd))
-                    .get()
-                    .await()
+                    .get().await()
 
+                val totalEvents = events.size()
                 var totalSpending = 0
-                val activeDates = mutableSetOf<String>()
+                val active = mutableSetOf<String>()
 
-                for (doc in spendingSnapshot.documents) {
-                    totalSpending += (doc.getLong("amount") ?: 0).toInt()
-                    val timestamp = doc.getTimestamp("date")
-                    if (timestamp != null) {
-                        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                            .format(timestamp.toDate())
-                        activeDates.add(dateStr)
+                for (d in spend.documents) {
+                    totalSpending += (d.getLong("amount") ?: 0).toInt()
+                    d.getTimestamp("date")?.toDate()?.let {
+                        active.add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it))
+                    }
+                }
+                for (d in events.documents) {
+                    d.getTimestamp("date")?.toDate()?.let {
+                        active.add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it))
                     }
                 }
 
-                // 일정이 있는 날짜도 추가
-                for (doc in eventsSnapshot.documents) {
-                    val timestamp = doc.getTimestamp("date")
-                    if (timestamp != null) {
-                        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                            .format(timestamp.toDate())
-                        activeDates.add(dateStr)
-                    }
-                }
-
-                // UI 업데이트
-                val numberFormat = NumberFormat.getInstance(Locale.KOREA)
-
-                eventsStats.findViewWithTag<TextView>("value_일정")?.text = "${totalEvents}"
-                spendingStats.findViewWithTag<TextView>("value_지출")?.text = "￦${numberFormat.format(totalSpending)}"
-                activeDaysStats.findViewWithTag<TextView>("value_활동일")?.text = "${activeDates.size}"
-
-                Log.d("Calendar", "이번 달 통계: 일정 ${totalEvents}건, 지출 ￦${numberFormat.format(totalSpending)}, 활동일 ${activeDates.size}일")
+                val nf = NumberFormat.getInstance(Locale.KOREA)
+                eventsStats.findViewWithTag<TextView>("value_일정")?.text = "$totalEvents"
+                spendingStats.findViewWithTag<TextView>("value_지출")?.text = "￦${nf.format(totalSpending)}"
+                activeDaysStats.findViewWithTag<TextView>("value_활동일")?.text = "${active.size}"
 
             } catch (e: Exception) {
-                Log.e("Calendar", "월별 통계 로드 실패", e)
+                Log.e("Calendar", "월 통계 로드 실패", e)
             }
         }
     }
 
-    private fun loadMonthData() {
-        // 월별 지시자 데이터 로드 (캘린더 지시자용)
-        Log.d("Calendar", "월별 데이터 로드 완료")
-    }
-
-    private fun loadDateData(selectedDate: Calendar) {
-        val currentUser = auth.currentUser ?: return
-
+    private fun loadDateData(sel: Calendar) {
+        val user = auth.currentUser ?: return
         lifecycleScope.launch {
             try {
-                val startOfDay = Calendar.getInstance().apply {
-                    timeInMillis = selectedDate.timeInMillis
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
+                val start = Calendar.getInstance().apply {
+                    timeInMillis = sel.timeInMillis
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }
+                val end = Calendar.getInstance().apply {
+                    timeInMillis = sel.timeInMillis
+                    set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
                 }
 
-                val endOfDay = Calendar.getInstance().apply {
-                    timeInMillis = selectedDate.timeInMillis
-                    set(Calendar.HOUR_OF_DAY, 23)
-                    set(Calendar.MINUTE, 59)
-                    set(Calendar.SECOND, 59)
-                    set(Calendar.MILLISECOND, 999)
+                val spend = db.collection("users").document(user.uid).collection("spending")
+                    .whereGreaterThanOrEqualTo("date", Timestamp(start.time))
+                    .whereLessThanOrEqualTo("date", Timestamp(end.time))
+                    .get().await()
+
+                var total = 0; var spendCount = 0
+                for (d in spend.documents) {
+                    total += (d.getLong("amount") ?: 0).toInt()
+                    spendCount++
                 }
 
-                // 지출 데이터 로드
-                val spendingSnapshot = db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("spending")
-                    .whereGreaterThanOrEqualTo("date", Timestamp(startOfDay.time))
-                    .whereLessThanOrEqualTo("date", Timestamp(endOfDay.time))
-                    .get()
-                    .await()
+                val events = db.collection("users").document(user.uid).collection("events")
+                    .whereGreaterThanOrEqualTo("date", Timestamp(start.time))
+                    .whereLessThanOrEqualTo("date", Timestamp(end.time))
+                    .get().await()
+                val eventCount = events.size()
 
-                var totalAmount = 0
-                var spendingCount = 0
-                for (document in spendingSnapshot.documents) {
-                    totalAmount += (document.getLong("amount") ?: 0).toInt()
-                    spendingCount++
-                }
-
-                // 로컬 일정 데이터 로드
-                val eventsSnapshot = db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("events")
-                    .whereGreaterThanOrEqualTo("date", Timestamp(startOfDay.time))
-                    .whereLessThanOrEqualTo("date", Timestamp(endOfDay.time))
-                    .get()
-                    .await()
-
-                val eventCount = eventsSnapshot.size()
-
-                // UI 업데이트
-                val numberFormat = NumberFormat.getInstance(Locale.KOREA)
-                dateTotalText.text = "￦${numberFormat.format(totalAmount)}"
-
-                updateDateIndicator(spendingCount, eventCount)
+                val nf = NumberFormat.getInstance(Locale.KOREA)
+                dateTotalText.text = "￦${nf.format(total)}"
+                updateDateIndicator(spendCount, eventCount)
 
             } catch (e: Exception) {
                 dateTotalText.text = "데이터 로드 실패"
@@ -501,131 +497,82 @@ class CalendarFragment : Fragment() {
         }
     }
 
-    private fun updateDateIndicator(spendingCount: Int, eventCount: Int) {
-        dateIndicator.removeAllViews()
-
-        val context = requireContext()
-
-        if (spendingCount > 0) {
-            val spendingIndicator = TextView(context).apply {
-                text = "💰 지출 ${spendingCount}건"
-                textSize = 14f
-                setPadding(8, 4, 8, 4)
-                setBackgroundColor(Color.parseColor("#E8F5E8"))
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, 0, 8, 0)
+    /** 현재 표시 월의 지출/일정 날짜 집합을 갱신하고 캘린더를 리프레시 */
+    private fun loadMonthDecorDataAndRefresh() {
+        val user = auth.currentUser ?: return
+        lifecycleScope.launch {
+            try {
+                val calStart = Calendar.getInstance().apply {
+                    timeInMillis = monthCursor.timeInMillis
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
                 }
-            }
-            dateIndicator.addView(spendingIndicator)
-        }
+                val calEnd = Calendar.getInstance().apply {
+                    timeInMillis = monthCursor.timeInMillis
+                    set(Calendar.DAY_OF_MONTH, monthCursor.getActualMaximum(Calendar.DAY_OF_MONTH))
+                    set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+                }
 
-        if (eventCount > 0) {
-            val eventIndicator = TextView(context).apply {
-                text = "📅 일정 ${eventCount}건"
-                textSize = 14f
-                setPadding(8, 4, 8, 4)
-                setBackgroundColor(Color.parseColor("#E3F2FD"))
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            }
-            dateIndicator.addView(eventIndicator)
-        }
+                val spend = db.collection("users").document(user.uid).collection("spending")
+                    .whereGreaterThanOrEqualTo("date", Timestamp(calStart.time))
+                    .whereLessThanOrEqualTo("date", Timestamp(calEnd.time))
+                    .get().await()
+                val events = db.collection("users").document(user.uid).collection("events")
+                    .whereGreaterThanOrEqualTo("date", Timestamp(calStart.time))
+                    .whereLessThanOrEqualTo("date", Timestamp(calEnd.time))
+                    .get().await()
 
-        if (spendingCount == 0 && eventCount == 0) {
-            val emptyIndicator = TextView(context).apply {
-                text = "🌱 오늘은 깨끗한 하루!"
-                textSize = 14f
-                setTextColor(Color.parseColor("#757575"))
+                spendDayKeys.clear()
+                for (d in spend.documents) {
+                    d.getTimestamp("date")?.toDate()?.let {
+                        spendDayKeys.add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it))
+                    }
+                }
+                eventDayKeys.clear()
+                for (d in events.documents) {
+                    d.getTimestamp("date")?.toDate()?.let {
+                        eventDayKeys.add(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it))
+                    }
+                }
+
+                // 그리드 갱신(데코 반영)
+                (monthGrid.adapter as DayCellAdapter).refreshDots(spendDayKeys, eventDayKeys)
+
+                // 월간 카드도 갱신
+                runCatching { loadMonthlyStats(eventsStatsView, spendingStatsView, activeDaysStatsView) }
+
+            } catch (e: Exception) {
+                Log.e("Calendar", "월 데코 로드 실패", e)
             }
-            dateIndicator.addView(emptyIndicator)
         }
     }
 
+    // ---------- 기타 UI ----------
+
     private fun showAddEventDialog() {
         val context = requireContext()
-
-        // 기본적인 다이얼로그 생성
-        val dialogLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
-        }
-
-        val titleEdit = EditText(context).apply {
-            hint = "일정 제목"
-            textSize = 16f
-        }
-
-        val descEdit = EditText(context).apply {
-            hint = "설명 (선택사항)"
-            textSize = 14f
-            setPadding(0, 16, 0, 0)
-        }
-
-        val repeatSpinner = Spinner(context).apply {
-            setPadding(0, 16, 0, 0)
-        }
-
-        val repeatCountEdit = EditText(context).apply {
-            hint = "반복 횟수"
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setPadding(0, 8, 0, 0)
-            visibility = View.GONE
-        }
-
-        // 반복 옵션 설정
-        val repeatOptions = listOf("반복 없음", "매일", "매주", "매월")
-        val repeatAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, repeatOptions)
-        repeatAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        repeatSpinner.adapter = repeatAdapter
-
-        // 반복 선택 시 횟수 입력 필드 표시/숨김
-        repeatSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (position == 0) { // "반복 없음"
-                    repeatCountEdit.visibility = View.GONE
-                } else {
-                    repeatCountEdit.visibility = View.VISIBLE
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        dialogLayout.addView(titleEdit)
-        dialogLayout.addView(descEdit)
-        dialogLayout.addView(repeatSpinner)
-        dialogLayout.addView(repeatCountEdit)
+        val layout = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setPadding(20, 20, 20, 20) }
+        val titleEdit = EditText(context).apply { hint = "일정 제목"; textSize = 16f }
+        val descEdit = EditText(context).apply { hint = "설명 (선택사항)"; textSize = 14f; setPadding(0, 16, 0, 0) }
+        layout.addView(titleEdit); layout.addView(descEdit)
 
         AlertDialog.Builder(context)
             .setTitle("📅 일정 추가")
-            .setView(dialogLayout)
+            .setView(layout)
             .setPositiveButton("추가") { _, _ ->
                 val title = titleEdit.text.toString()
                 val description = descEdit.text.toString()
-                val repeatType = repeatSpinner.selectedItemPosition
-                val repeatCount = repeatCountEdit.text.toString().toIntOrNull() ?: 0
-
-                if (title.isNotEmpty()) {
-                    if (repeatType == 0) {
-                        addLocalEvent(title, description)
-                    } else {
-                        addRepeatingEvent(title, description, repeatType, repeatCount)
-                    }
-                } else {
-                    Toast.makeText(context, "제목을 입력해주세요", Toast.LENGTH_SHORT).show()
-                }
+                if (title.isNotEmpty()) addLocalEvent(title, description)
+                else Toast.makeText(context, "제목을 입력해주세요", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("취소", null)
             .show()
     }
 
     private fun addLocalEvent(title: String, description: String) {
-        val currentUser = auth.currentUser ?: return
-
+        val user = auth.currentUser ?: return
         val event = hashMapOf(
             "title" to title,
             "description" to description,
@@ -634,382 +581,266 @@ class CalendarFragment : Fragment() {
             "isRepeating" to false,
             "createdAt" to Timestamp.now()
         )
-
-        db.collection("users")
-            .document(currentUser.uid)
-            .collection("events")
+        db.collection("users").document(user.uid).collection("events")
             .add(event)
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "일정이 추가되었습니다!", Toast.LENGTH_SHORT).show()
                 loadDateData(selectedDate)
-                loadMonthData()
+                loadMonthlyStats(eventsStatsView, spendingStatsView, activeDaysStatsView)
+                loadMonthDecorDataAndRefresh()
             }
             .addOnFailureListener {
                 Toast.makeText(requireContext(), "일정 추가 실패: ${it.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun addRepeatingEvent(title: String, description: String, repeatType: Int, repeatCount: Int) {
-        val currentUser = auth.currentUser ?: return
-
-        val repeatTypes = listOf("", "DAILY", "WEEKLY", "MONTHLY")
-        val repeatTypeStr = if (repeatType < repeatTypes.size) repeatTypes[repeatType] else ""
-
-        val maxRepeats = if (repeatCount > 0) repeatCount else getDefaultRepeatCount(repeatType)
-
-        val baseCalendar = Calendar.getInstance().apply {
-            time = selectedDate.time
-        }
-
-        val events = mutableListOf<Map<String, Any>>()
-
-        for (i in 0 until maxRepeats) {
-            val eventDate = Calendar.getInstance().apply {
-                time = baseCalendar.time
-                when (repeatType) {
-                    1 -> add(Calendar.DAY_OF_MONTH, i) // 매일
-                    2 -> add(Calendar.WEEK_OF_YEAR, i) // 매주
-                    3 -> add(Calendar.MONTH, i) // 매월
-                }
-            }
-
-            val event = hashMapOf<String, Any>(
-                "title" to title,
-                "description" to description,
-                "date" to Timestamp(eventDate.time),
-                "type" to "LOCAL",
-                "isRepeating" to true,
-                "repeatType" to repeatTypeStr,
-                "repeatIndex" to i,
-                "totalRepeats" to maxRepeats,
-                "createdAt" to Timestamp.now()
-            )
-
-            events.add(event)
-        }
-
-        // 배치로 모든 반복 일정 추가
-        val batch = db.batch()
-        events.forEach { event ->
-            val docRef = db.collection("users")
-                .document(currentUser.uid)
-                .collection("events")
-                .document()
-            batch.set(docRef, event)
-        }
-
-        batch.commit()
-            .addOnSuccessListener {
-                val repeatTypeNames = listOf("", "매일", "매주", "매월")
-                val typeName = if (repeatType < repeatTypeNames.size) repeatTypeNames[repeatType] else ""
-                Toast.makeText(requireContext(), "🔄 ${typeName} ${maxRepeats}회 반복 일정이 추가되었습니다!", Toast.LENGTH_LONG).show()
-                loadDateData(selectedDate)
-                loadMonthData()
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "❌ 반복 일정 추가 실패: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    private fun getDefaultRepeatCount(repeatType: Int): Int {
-        return when (repeatType) {
-            1 -> 30 // 매일 - 30일
-            2 -> 12 // 매주 - 12주
-            3 -> 12 // 매월 - 12개월
-            else -> 1
-        }
-    }
-
     private fun showDateDetailBottomSheet() {
         val context = requireContext()
-        val bottomSheetDialog = BottomSheetDialog(context)
-
-        // 기본 레이아웃 생성
-        val bottomSheetLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
-        }
-
-        val dateTitle = TextView(context).apply {
+        val dialog = BottomSheetDialog(context)
+        val layout = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setPadding(20, 20, 20, 20) }
+        val title = TextView(context).apply {
             textSize = 18f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setPadding(0, 0, 0, 16)
         }
-
-        val recyclerView = RecyclerView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                400.dpToPx()
-            )
+        val rv = RecyclerView(context).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 400.dpToPx())
         }
-
-        val emptyMessage = TextView(context).apply {
+        val empty = TextView(context).apply {
             text = "이 날에는 일정이나 지출이 없습니다."
             textSize = 14f
             gravity = Gravity.CENTER
             setTextColor(Color.parseColor("#757575"))
             visibility = View.GONE
         }
+        val df = SimpleDateFormat("MM월 dd일 (E)", Locale.KOREAN)
+        title.text = df.format(selectedDate.time)
 
-        val dateFormat = SimpleDateFormat("MM월 dd일 (E)", Locale.KOREAN)
-        dateTitle.text = dateFormat.format(selectedDate.time)
+        layout.addView(title); layout.addView(rv); layout.addView(empty)
+        dialog.setContentView(layout)
+        dialog.show()
 
-        bottomSheetLayout.addView(dateTitle)
-        bottomSheetLayout.addView(recyclerView)
-        bottomSheetLayout.addView(emptyMessage)
-
-        // 데이터 로드 및 리사이클러뷰 설정
-        loadDateEventsAndSpending(recyclerView, emptyMessage)
-
-        bottomSheetDialog.setContentView(bottomSheetLayout)
-        bottomSheetDialog.show()
+        // 데이터 로드는 다이얼로그 보여준 뒤 호출 (context 안전)
+        loadDateEventsAndSpending(rv, empty)
     }
 
-    private fun loadDateEventsAndSpending(recyclerView: RecyclerView, emptyMessage: TextView) {
-        val currentUser = auth.currentUser ?: return
+    private fun loadDateEventsAndSpending(rv: RecyclerView, empty: TextView) {
+        val user = auth.currentUser
+        if (user == null) {
+            Toast.makeText(requireContext(), "로그인이 필요합니다", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         lifecycleScope.launch {
+            val all = mutableListOf<CalendarEvent>()
+
+            // 1) 날짜 범위 계산
+            val start = Calendar.getInstance().apply {
+                timeInMillis = selectedDate.timeInMillis
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+            val end = Calendar.getInstance().apply {
+                timeInMillis = selectedDate.timeInMillis
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+            }
+
+            // 2) 로컬/앱 일정
             try {
-                val startOfDay = Calendar.getInstance().apply {
-                    timeInMillis = selectedDate.timeInMillis
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
+                val events = db.collection("users").document(user.uid).collection("events")
+                    .whereGreaterThanOrEqualTo("date", Timestamp(start.time))
+                    .whereLessThanOrEqualTo("date", Timestamp(end.time))
+                    .get().await()
 
-                val endOfDay = Calendar.getInstance().apply {
-                    timeInMillis = selectedDate.timeInMillis
-                    set(Calendar.HOUR_OF_DAY, 23)
-                    set(Calendar.MINUTE, 59)
-                    set(Calendar.SECOND, 59)
-                    set(Calendar.MILLISECOND, 999)
-                }
-
-                val allItems = mutableListOf<CalendarEvent>()
-
-                // 로컬 일정 로드
-                val eventsSnapshot = db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("events")
-                    .whereGreaterThanOrEqualTo("date", Timestamp(startOfDay.time))
-                    .whereLessThanOrEqualTo("date", Timestamp(endOfDay.time))
-                    .get()
-                    .await()
-
-                for (doc in eventsSnapshot.documents) {
-                    val event = CalendarEvent(
-                        id = doc.id,
-                        title = doc.getString("title") ?: "",
-                        description = doc.getString("description") ?: "",
-                        date = doc.getTimestamp("date") ?: Timestamp.now(),
-                        type = EventType.LOCAL,
-                        category = "로컬 일정"
+                for (d in events.documents) {
+                    val t = d.getString("type") ?: "LOCAL"
+                    all.add(
+                        CalendarEvent(
+                            id = d.id,
+                            title = d.getString("title") ?: "",
+                            description = d.getString("description") ?: "",
+                            date = d.getTimestamp("date") ?: Timestamp.now(),
+                            type = if (t == "SPENDING") EventType.SPENDING else EventType.LOCAL,
+                            category = if (t == "SPENDING") d.getString("category") ?: "지출" else "로컬 일정"
+                        )
                     )
-                    allItems.add(event)
                 }
-
-                // 지출 내역 로드
-                val spendingSnapshot = db.collection("users")
-                    .document(currentUser.uid)
-                    .collection("spending")
-                    .whereGreaterThanOrEqualTo("date", Timestamp(startOfDay.time))
-                    .whereLessThanOrEqualTo("date", Timestamp(endOfDay.time))
-                    .get()
-                    .await()
-
-                for (doc in spendingSnapshot.documents) {
-                    val amount = (doc.getLong("amount") ?: 0).toInt()
-                    val category = doc.getString("category") ?: "기타"
-                    val memo = doc.getString("memo") ?: ""
-
-                    val numberFormat = NumberFormat.getInstance(Locale.KOREA)
-                    val event = CalendarEvent(
-                        id = doc.id,
-                        title = "$category - ￦${numberFormat.format(amount)}",
-                        description = memo,
-                        date = doc.getTimestamp("date") ?: Timestamp.now(),
-                        type = EventType.SPENDING,
-                        category = category
-                    )
-                    allItems.add(event)
-                }
-
-                // Google 캘린더 이벤트 로드 (구글 로그인 사용자인 경우)
-                val googleAccount = GoogleSignIn.getLastSignedInAccount(requireContext())
-                if (googleAccount != null) {
-                    try {
-                        val googleCalendarHelper = GoogleCalendarHelper(requireContext(), googleAccount)
-                        googleCalendarHelper.loadEventsForDate(selectedDate.time) { googleEvents ->
-                            allItems.addAll(googleEvents)
-                            setupRecyclerView(allItems, recyclerView, emptyMessage)
-                        }
-                    } catch (e: Exception) {
-                        Log.w("Calendar", "Google Calendar Helper 사용 불가", e)
-                        setupRecyclerView(allItems, recyclerView, emptyMessage)
-                    }
-                } else {
-                    setupRecyclerView(allItems, recyclerView, emptyMessage)
-                }
-
             } catch (e: Exception) {
-                Log.e("Calendar", "이벤트 로드 실패", e)
-                Toast.makeText(requireContext(), "데이터 로드 실패", Toast.LENGTH_SHORT).show()
+                Log.e("Calendar", "앱 일정 로드 실패", e)
+                Toast.makeText(requireContext(), "앱 일정 로드 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+
+            // 3) 지출
+            try {
+                val spend = db.collection("users").document(user.uid).collection("spending")
+                    .whereGreaterThanOrEqualTo("date", Timestamp(start.time))
+                    .whereLessThanOrEqualTo("date", Timestamp(end.time))
+                    .get().await()
+
+                val nf = NumberFormat.getInstance(Locale.KOREA)
+                for (d in spend.documents) {
+                    val amount = (d.getLong("amount") ?: 0).toInt()
+                    val category = d.getString("category") ?: "기타"
+                    val memo = d.getString("memo") ?: ""
+                    all.add(
+                        CalendarEvent(
+                            id = d.id,
+                            title = "$category - ￦${nf.format(amount)}",
+                            description = memo.ifEmpty { "메모 없음" },
+                            date = d.getTimestamp("date") ?: Timestamp.now(),
+                            type = EventType.SPENDING,
+                            category = category
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("Calendar", "지출 로드 실패", e)
+                Toast.makeText(requireContext(), "지출 로드 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+
+            // 4) Google 캘린더 (있으면)
+            val account = GoogleSignIn.getLastSignedInAccount(requireContext())
+            if (account != null) {
+                try {
+                    val helper = GoogleCalendarHelper(requireContext(), account)
+                    helper.loadEventsForDate(selectedDate.time) { googleEvents ->
+                        // 콜백이 어디서 오든 UI 스레드로 보장
+                        if (isAdded) {
+                            requireActivity().runOnUiThread {
+                                all.addAll(googleEvents)
+                                setupRecycler(all, rv, empty)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("Calendar", "Google Calendar Helper 사용 불가", e)
+                    Toast.makeText(requireContext(), "구글 캘린더 로드 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+                    setupRecycler(all, rv, empty)
+                }
+            } else {
+                setupRecycler(all, rv, empty)
             }
         }
     }
 
-    private fun setupRecyclerView(allItems: MutableList<CalendarEvent>, recyclerView: RecyclerView, emptyMessage: TextView) {
-        // 시간순으로 정렬
+    private fun setupRecycler(allItems: MutableList<CalendarEvent>, rv: RecyclerView, empty: TextView) {
         allItems.sortBy { it.date.toDate() }
-
-        // 어댑터 설정
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-
-        // CalendarEventsAdapter 사용
-        try {
-            recyclerView.adapter = CalendarEventsAdapter(allItems) {
-                // 데이터 변경 시 콜백
-                loadDateData(selectedDate)
-                loadMonthData()
-            }
-        } catch (e: Exception) {
-            // 기본 SimpleAdapter 사용
-            recyclerView.adapter = SimpleCalendarAdapter(allItems) {
-                loadDateData(selectedDate)
-                loadMonthData()
-            }
+        rv.layoutManager = LinearLayoutManager(requireContext())
+        rv.adapter = CalendarEventsAdapter(allItems) {
+            loadDateData(selectedDate)
+            loadMonthlyStats(eventsStatsView, spendingStatsView, activeDaysStatsView)
+            loadMonthDecorDataAndRefresh()
         }
+        if (allItems.isEmpty()) { empty.visibility = View.VISIBLE; rv.visibility = View.GONE }
+        else { empty.visibility = View.GONE; rv.visibility = View.VISIBLE }
+    }
 
-        // 빈 메시지 처리
-        if (allItems.isEmpty()) {
-            emptyMessage.visibility = View.VISIBLE
-            recyclerView.visibility = View.GONE
-        } else {
-            emptyMessage.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
+    private fun updateDateIndicator(spendingCount: Int, eventCount: Int) {
+        dateIndicator.removeAllViews()
+        val context = requireContext()
+        if (spendingCount > 0) {
+            val t = TextView(context).apply {
+                text = "💰 지출 ${spendingCount}건"; textSize = 14f
+                setPadding(8, 4, 8, 4); setBackgroundColor(Color.parseColor("#E8F5E8"))
+                updateLayoutParams<ViewGroup.MarginLayoutParams> { rightMargin = 8.dpToPx() }
+            }
+            dateIndicator.addView(t)
+        }
+        if (eventCount > 0) {
+            val t = TextView(context).apply {
+                text = "📅 일정 ${eventCount}건"; textSize = 14f
+                setPadding(8, 4, 8, 4); setBackgroundColor(Color.parseColor("#E3F2FD"))
+            }
+            dateIndicator.addView(t)
+        }
+        if (spendingCount == 0 && eventCount == 0) {
+            val t = TextView(context).apply {
+                text = "🌱 오늘은 깨끗한 하루!"; textSize = 14f
+                setTextColor(Color.parseColor("#757575"))
+            }
+            dateIndicator.addView(t)
         }
     }
 
     private fun Int.dpToPx(): Int {
-        val density = resources.displayMetrics.density
-        return (this * density).toInt()
+        val d = resources.displayMetrics.density
+        return (this * d).toInt()
     }
 }
 
-// 기본 어댑터 클래스 (CalendarEventsAdapter가 없는 경우 대비)
-class SimpleCalendarAdapter(
-    private val items: MutableList<CalendarEvent>,
-    private val onDataChanged: () -> Unit
-) : RecyclerView.Adapter<SimpleCalendarAdapter.ViewHolder>() {
+// ---------- 데이터 모델 & Day 셀 어댑터 ----------
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val titleText: TextView = view.findViewWithTag("title") ?: TextView(view.context)
-        val descText: TextView = view.findViewWithTag("desc") ?: TextView(view.context)
+private data class DayCell(
+    val date: Date,
+    val inMonth: Boolean
+)
+
+private class DayCellAdapter(
+    private val onClick: (DayCell) -> Unit
+) : RecyclerView.Adapter<DayCellAdapter.VH>() {
+
+    private val items = mutableListOf<DayCell>()
+    private val spendKeys = mutableSetOf<String>()
+    private val eventKeys = mutableSetOf<String>()
+    private val dayFormat = SimpleDateFormat("d", Locale.getDefault())
+    private val keyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    fun submit(newItems: List<DayCell>) {
+        items.clear(); items.addAll(newItems); notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        // 프로그래매틱하게 레이아웃 생성
+    fun refreshDots(spend: Set<String>, event: Set<String>) {
+        spendKeys.clear(); spendKeys.addAll(spend)
+        eventKeys.clear(); eventKeys.addAll(event)
+        notifyDataSetChanged()
+    }
+
+    inner class VH(val card: CardView, val dayText: TextView, val dotRow: LinearLayout, val dotSpend: View, val dotEvent: View) :
+        RecyclerView.ViewHolder(card)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val context = parent.context
-        val cardView = androidx.cardview.widget.CardView(context).apply {
+        val card = CardView(context).apply {
             layoutParams = ViewGroup.MarginLayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(8, 4, 8, 4)
-            }
-            radius = 8f
-            cardElevation = 2f
+                (parent.measuredWidth / 7.0 * 0.9).toInt()
+            ).apply { setMargins(2, 2, 2, 2) }
+            radius = 12f
+            cardElevation = 0f
         }
-
-        val layout = LinearLayout(context).apply {
+        val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(16, 12, 16, 12)
+            gravity = Gravity.CENTER
+            setPadding(0, 8, 0, 8)
         }
-
-        val titleText = TextView(context).apply {
-            tag = "title"
-            textSize = 16f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(Color.parseColor("#1A1D29"))
-        }
-
-        val descText = TextView(context).apply {
-            tag = "desc"
-            textSize = 14f
-            setTextColor(Color.parseColor("#757575"))
-            setPadding(0, 4, 0, 0)
-        }
-
-        layout.addView(titleText)
-        layout.addView(descText)
-        cardView.addView(layout)
-
-        return ViewHolder(cardView)
+        val dayText = TextView(context).apply { textSize = 16f; gravity = Gravity.CENTER }
+        val dotRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0, 4, 0, 0) }
+        val dotSpend = View(context).apply { setBackgroundColor(Color.parseColor("#4CAF50")) }
+        val dotEvent = View(context).apply { setBackgroundColor(Color.parseColor("#2196F3")) }
+        val size = (6 * context.resources.displayMetrics.density).toInt()
+        dotRow.addView(dotSpend, LinearLayout.LayoutParams(size, size).apply { rightMargin = (4 * context.resources.displayMetrics.density).toInt() })
+        dotRow.addView(dotEvent, LinearLayout.LayoutParams(size, size))
+        box.addView(dayText); box.addView(dotRow)
+        card.addView(box)
+        return VH(card, dayText, dotRow, dotSpend, dotEvent)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = items[position]
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val cell = items[position]
+        holder.dayText.text = dayFormat.format(cell.date)
 
-        val typeEmoji = when (item.type) {
-            EventType.LOCAL -> "📅"
-            EventType.GOOGLE -> "🔗"
-            EventType.SPENDING -> "💰"
-        }
+        holder.card.alpha = if (cell.inMonth) 1f else 0.35f
 
-        holder.titleText.text = "$typeEmoji ${item.title}"
-        holder.descText.text = if (item.description.isNotEmpty()) item.description else "설명 없음"
+        val key = keyFormat.format(cell.date)
+        val hasSpend = spendKeys.contains(key)
+        val hasEvent = eventKeys.contains(key)
 
-        // 길게 누르기 이벤트 (삭제 기능)
-        holder.itemView.setOnLongClickListener {
-            showDeleteDialog(item, position)
-            true
-        }
-    }
+        holder.dotRow.visibility = if (hasSpend || hasEvent) View.VISIBLE else View.INVISIBLE
+        holder.dotSpend.visibility = if (hasSpend) View.VISIBLE else View.GONE
+        holder.dotEvent.visibility = if (hasEvent) View.VISIBLE else View.GONE
 
-    private fun showDeleteDialog(item: CalendarEvent, position: Int) {
-        val context = items.firstOrNull()?.let {
-            return@let null
-        }
-
-        // 삭제 기능은 LOCAL 이벤트와 SPENDING에서만 지원
-        if (item.type == EventType.LOCAL || item.type == EventType.SPENDING) {
-            try {
-                val title = if (item.type == EventType.SPENDING) "지출 삭제" else "일정 삭제"
-                val message = "'${item.title}'을(를) 삭제하시겠습니까?"
-
-                // Context가 없으므로 삭제 기능을 직접 호출
-                deleteEvent(item, position)
-            } catch (e: Exception) {
-                Log.w("Calendar", "삭제 다이얼로그 표시 실패", e)
-            }
-        }
-    }
-
-    private fun deleteEvent(item: CalendarEvent, position: Int) {
-        val auth = FirebaseAuth.getInstance()
-        val db = FirebaseFirestore.getInstance()
-        val currentUser = auth.currentUser ?: return
-
-        val collection = when (item.type) {
-            EventType.LOCAL -> "events"
-            EventType.SPENDING -> "spending"
-            EventType.GOOGLE -> return // 구글 이벤트는 삭제 불가
-        }
-
-        db.collection("users")
-            .document(currentUser.uid)
-            .collection(collection)
-            .document(item.id)
-            .delete()
-            .addOnSuccessListener {
-                items.removeAt(position)
-                notifyItemRemoved(position)
-                onDataChanged()
-            }
-            .addOnFailureListener {
-                Log.e("Calendar", "삭제 실패: ${it.message}")
-            }
+        holder.card.setOnClickListener { onClick(cell) }
     }
 
     override fun getItemCount() = items.size

@@ -14,9 +14,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * 캘린더 이벤트 어댑터 - 일정과 지출을 통합 표시
- */
 class CalendarEventsAdapter(
     private val events: MutableList<CalendarEvent>,
     private val onDataChanged: () -> Unit

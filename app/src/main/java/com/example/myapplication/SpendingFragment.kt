@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -92,44 +93,110 @@ class SpendingFragment : Fragment() {
         // Firestore 저장
         db.collection("users").document(uid).collection("spending")
             .add(spending)
-            .addOnSuccessListener {
+            .addOnSuccessListener { documentReference ->
+                Log.d("SpendingFragment", "지출 저장 성공: ${documentReference.id}")
                 Toast.makeText(requireContext(), "지출 저장 성공!", Toast.LENGTH_SHORT).show()
+
+                // 입력 필드 초기화
                 clearInputs()
 
-                // Google 캘린더 연동 (Google 사용자인 경우)
-                addToGoogleCalendarIfNeeded(category, amount, memo, timestamp)
+                // 캘린더 이벤트 추가 (앱 내 캘린더 - 모든 사용자용)
+                addToCalendarEvent(uid, category, amount, memo, timestamp)
 
-                // 홈화면으로 이동
+                // Google 캘린더 연동 (안전한 방식으로 처리)
+                safeAddToGoogleCalendar(category, amount, memo, timestamp)
+
+                // 안전한 방식으로 홈화면으로 이동
                 navigateToHome()
             }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "저장 실패: ${it.message}", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener { e ->
+                Log.e("SpendingFragment", "지출 저장 실패", e)
+                Toast.makeText(requireContext(), "저장 실패: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun addToGoogleCalendarIfNeeded(category: String, amount: Int, memo: String, timestamp: Timestamp) {
-        val googleAccount = GoogleSignIn.getLastSignedInAccount(requireContext())
-        if (googleAccount != null) {
-            val googleCalendarHelper = GoogleCalendarHelper(requireContext(), googleAccount)
-            val title = "[지출] $category - ${String.format("%,d", amount)}원"
-            val description = if (memo.isNotEmpty()) memo else "직접 입력한 지출"
+    private fun addToCalendarEvent(uid: String, category: String, amount: Int, memo: String, timestamp: Timestamp) {
+        // 앱 내 캘린더 이벤트 생성 (모든 사용자용)
+        val title = "💰 $category"
+        val description = "금액: ${String.format("%,d", amount)}원\n메모: ${memo.ifEmpty { "없음" }}"
 
-            googleCalendarHelper.insertExpenseEvent(title, description, timestamp)
+        val calendarEvent = hashMapOf(
+            "title" to title,
+            "description" to description,
+            "date" to timestamp,
+            "type" to "SPENDING",
+            "category" to category,
+            "amount" to amount,
+            "createdAt" to Timestamp.now()
+        )
+
+        db.collection("users").document(uid).collection("events")
+            .add(calendarEvent)
+            .addOnSuccessListener { documentReference ->
+                Log.d("SpendingFragment", "캘린더 이벤트 추가 성공: ${documentReference.id}")
+            }
+            .addOnFailureListener { e ->
+                Log.e("SpendingFragment", "캘린더 이벤트 추가 실패", e)
+                // 실패해도 앱은 계속 동작
+            }
+    }
+
+    private fun safeAddToGoogleCalendar(category: String, amount: Int, memo: String, timestamp: Timestamp) {
+        try {
+            val googleAccount = GoogleSignIn.getLastSignedInAccount(requireContext())
+            if (googleAccount != null) {
+                Log.d("SpendingFragment", "Google 계정 확인됨, 캘린더 연동 시도")
+
+                // Google Calendar Helper를 안전하게 사용
+                try {
+                    val googleCalendarHelper = GoogleCalendarHelper(requireContext(), googleAccount)
+                    val title = "[지출] $category - ${String.format("%,d", amount)}원"
+                    val description = if (memo.isNotEmpty()) memo else "직접 입력한 지출"
+
+                    googleCalendarHelper.insertExpenseEvent(title, description, timestamp)
+                    Log.d("SpendingFragment", "Google 캘린더 연동 성공")
+                } catch (e: Exception) {
+                    Log.w("SpendingFragment", "Google 캘린더 연동 실패, 앱 내 캘린더만 사용: ${e.message}")
+                    // Google 캘린더 연동 실패해도 앱은 정상 동작
+                }
+            } else {
+                Log.d("SpendingFragment", "Google 계정 없음, 앱 내 캘린더만 사용")
+            }
+        } catch (e: Exception) {
+            Log.w("SpendingFragment", "Google 서비스 확인 실패: ${e.message}")
+            // 모든 Google 관련 오류를 안전하게 처리
         }
     }
 
     private fun clearInputs() {
-        binding.inputAmount.setText("")
-        binding.inputMemo.setText("")
-        // 스피너도 초기화
-        binding.inputCategory.setSelection(0)
-        binding.inputAsset.setSelection(0)
+        try {
+            binding.inputAmount.setText("")
+            binding.inputMemo.setText("")
+            // 스피너도 초기화
+            binding.inputCategory.setSelection(0)
+            binding.inputAsset.setSelection(0)
+        } catch (e: Exception) {
+            Log.e("SpendingFragment", "입력 필드 초기화 실패", e)
+        }
     }
 
     private fun navigateToHome() {
-        requireActivity().supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, HomeFragment())
-            .commit()
+        try {
+            val activity = requireActivity() as? MainActivity
+            if (activity != null) {
+                // 백스택에서 현재 Fragment 제거
+                activity.supportFragmentManager.popBackStack()
+
+                // 하단 네비게이션을 홈으로 설정
+                activity.findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottom_navigation_view)
+                    ?.selectedItemId = R.id.menu_home
+
+                Log.d("SpendingFragment", "홈으로 이동 완료")
+            }
+        } catch (e: Exception) {
+            Log.e("SpendingFragment", "홈 이동 실패", e)
+            // 네비게이션 실패해도 앱이 크래시되지 않도록 처리
+        }
     }
 
     override fun onDestroyView() {

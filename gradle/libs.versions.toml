@@ -50,7 +50,6 @@ google-oauth-client-jetty = { module = "com.google.oauth-client:google-oauth-cli
 google-api-client = { module = "com.google.api-client:google-api-client-android", version = "1.35.0" }
 google-http-client-gson = { module = "com.google.http-client:google-http-client-gson", version.ref = "google-http-client" }
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
-
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
