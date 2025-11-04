@@ -170,6 +170,13 @@
     <string name="error">오류</string>
     <string name="success">성공</string>
 
+    <string name="ai_advice_title">소비 분석</string>
+    <string name="ai_advice_subtitle"> </string>
+    <string name="no_data_for_analysis">데이터가 없습니다</string>
+    <string name="add_more_expenses_hint"> </string>
+    <string name="refresh_advice">새로고침</string>
+    <string name="menu_ai">ai</string>
+
     <!-- Google Client ID (Firebase 프로젝트에서 가져온 값) -->
     <string name="default_web_client_id">547148140928-in5knk9bh6rdho4u7hg9ni1g09hlf3ol.apps.googleusercontent.com</string>
 

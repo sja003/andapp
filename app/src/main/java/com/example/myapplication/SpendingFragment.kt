@@ -85,8 +85,8 @@ class SpendingFragment : Fragment() {
         val spending = hashMapOf(
             "amount" to amount,
             "category" to category,
-            "asset" to asset,
-            "memo" to memo,
+            "asset" to (asset ?: "현금"),  // null이면 기본값
+            "memo" to (memo ?: ""),        // null이면 빈 문자열
             "date" to timestamp
         )
 

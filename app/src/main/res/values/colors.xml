@@ -83,4 +83,8 @@
     <!-- Bottom Navigation -->
     <color name="bottom_nav_selected">@color/primary_color</color>
     <color name="bottom_nav_unselected">@color/gray_400</color>
+
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
 </resources>

@@ -74,6 +74,10 @@ class MainActivity : AppCompatActivity() {
                     loadFragment(AnalysisFragment())
                     true
                 }
+                R.id.menu_ai -> {
+                    loadFragment(AiAdviceFragment())
+                    true
+                }
                 R.id.menu_assets -> {
                     binding.toolbar.title = "💼 자산 관리"
                     loadFragment(AssetFragment())
